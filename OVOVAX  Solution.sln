@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35707.178
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OVOVAX.API", "OVOVAX.API\OVOVAX.API.csproj", "{EF0F514B-4F55-4E34-960B-DA86560BD9D3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OVOVAX.Core", "OVOVAX.Core\OVOVAX.Core.csproj", "{41321C17-EDF1-460C-B673-D549DC4275B7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OVOVAX.Repository", "OVOVAX.Repository\OVOVAX.Repository.csproj", "{8D81E4BC-48ED-42C3-AAB4-59049DC78907}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OVOVAX.Services", "OVOVAX.Services\OVOVAX.Services.csproj", "{CBF4BD4C-FF2B-42AE-8EAD-BF5A12E738EB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EF0F514B-4F55-4E34-960B-DA86560BD9D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF0F514B-4F55-4E34-960B-DA86560BD9D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF0F514B-4F55-4E34-960B-DA86560BD9D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF0F514B-4F55-4E34-960B-DA86560BD9D3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41321C17-EDF1-460C-B673-D549DC4275B7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41321C17-EDF1-460C-B673-D549DC4275B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41321C17-EDF1-460C-B673-D549DC4275B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41321C17-EDF1-460C-B673-D549DC4275B7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D81E4BC-48ED-42C3-AAB4-59049DC78907}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D81E4BC-48ED-42C3-AAB4-59049DC78907}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D81E4BC-48ED-42C3-AAB4-59049DC78907}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D81E4BC-48ED-42C3-AAB4-59049DC78907}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CBF4BD4C-FF2B-42AE-8EAD-BF5A12E738EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CBF4BD4C-FF2B-42AE-8EAD-BF5A12E738EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CBF4BD4C-FF2B-42AE-8EAD-BF5A12E738EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CBF4BD4C-FF2B-42AE-8EAD-BF5A12E738EB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A48A30E9-76F5-49D9-82D5-26D02AE7EB1E}
+	EndGlobalSection
+EndGlobal

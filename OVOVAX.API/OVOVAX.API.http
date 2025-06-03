@@ -1,0 +1,6 @@
+@OVOVAX.API_HostAddress = http://localhost:5243
+
+GET {{OVOVAX.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
