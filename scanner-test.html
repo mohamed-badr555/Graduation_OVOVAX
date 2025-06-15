@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OVOVAX Scanner Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info {
+            color: #17a2b8;
+        }
+        .log {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-left: 3px solid #007bff;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 OVOVAX Scanner Test Interface</h1>
+        
+        <div class="test-section">
+            <h3>📊 Scanner Workflow Test</h3>
+            <p>Test the complete start → stop scanner workflow with depth measurement.</p>
+            
+            <div>
+                <button id="startScanBtn" onclick="startScan()">🚀 Start Scan</button>
+                <button id="stopScanBtn" onclick="stopScan()" disabled>⏹️ Stop Scan</button>
+                <button onclick="getScanHistory()">📝 Get History</button>
+                <button onclick="clearLog()">🧹 Clear Log</button>
+            </div>
+            
+            <div style="margin: 10px 0;">
+                <label>Depth Measurement (mm): </label>
+                <input type="number" id="depthInput" value="15.75" step="0.01" min="0">
+            </div>
+            
+            <div style="margin: 10px 0;">
+                <span class="info">Current Scan ID: </span>
+                <span id="currentScanId">None</span>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📋 API Test Results</h3>
+            <div id="logOutput" class="log">
+Ready to test OVOVAX Scanner API...
+Click "Start Scan" to begin the workflow test.
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📖 How to Test</h3>
+            <ol>
+                <li><strong>Start Scan:</strong> Click "Start Scan" to create a new scan with status "InProgress"</li>
+                <li><strong>Check ID:</strong> Note the scan ID returned from the start operation</li>
+                <li><strong>Set Depth:</strong> Enter a depth measurement value (in mm)</li>
+                <li><strong>Stop Scan:</strong> Click "Stop Scan" to complete the scan with "Success" status</li>
+                <li><strong>View History:</strong> Click "Get History" to see all scans including the completed one</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://localhost:7268/api';
+        let currentScanId = null;
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            output.innerHTML += `\n[${timestamp}] <span class="${className}">${message}</span>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logOutput').innerHTML = 'Log cleared.\n';
+        }
+
+        function updateScanId(scanId) {
+            currentScanId = scanId;
+            document.getElementById('currentScanId').textContent = scanId || 'None';
+            document.getElementById('stopScanBtn').disabled = !scanId;
+        }
+
+        async function startScan() {
+            try {
+                log('🚀 Starting scan...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/Scanner/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({})
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                const data = await response.json();
+                log(`✅ Scan started successfully!`, 'success');
+                log(`📊 Response: ${JSON.stringify(data, null, 2)}`);
+                
+                updateScanId(data.scanId);
+                document.getElementById('startScanBtn').disabled = true;
+                
+            } catch (error) {
+                log(`❌ Start scan failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopScan() {
+            if (!currentScanId) {
+                log('❌ No active scan to stop', 'error');
+                return;
+            }
+
+            try {
+                const depthMeasurement = parseFloat(document.getElementById('depthInput').value);
+                if (isNaN(depthMeasurement) || depthMeasurement < 0) {
+                    log('❌ Please enter a valid depth measurement', 'error');
+                    return;
+                }
+
+                log(`⏹️ Stopping scan ${currentScanId} with depth ${depthMeasurement}mm...`, 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/Scanner/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        scanId: currentScanId,
+                        depthMeasurement: depthMeasurement
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                log(`✅ Scan stopped successfully!`, 'success');
+                log(`📊 Response: ${JSON.stringify(data, null, 2)}`);
+                log(`🎯 Final Status: ${data.status}`, 'success');
+                log(`📏 Depth Measurement: ${data.depthMeasurement}mm`, 'success');
+                
+                updateScanId(null);
+                document.getElementById('startScanBtn').disabled = false;
+                
+            } catch (error) {
+                log(`❌ Stop scan failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function getScanHistory() {
+            try {
+                log('📝 Getting scan history...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/Scanner/history`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                const data = await response.json();
+                log(`✅ Scan history retrieved!`, 'success');
+                log(`📊 Found ${data.length} scan(s):`, 'info');
+                
+                data.forEach((scan, index) => {
+                    log(`  ${index + 1}. ID: ${scan.id}, Status: ${scan.status}, Depth: ${scan.depthMeasurement}mm, Time: ${scan.scanTime}`, 'info');
+                });
+                
+            } catch (error) {
+                log(`❌ Get history failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Test connection on page load
+        window.onload = async function() {
+            try {
+                log('🔌 Testing API connection...', 'info');
+                const response = await fetch(`${API_BASE_URL}/Scanner/history`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    log('✅ API connection successful!', 'success');
+                    log('🚀 Ready to test scanner workflow.', 'success');
+                } else {
+                    log(`⚠️ API responded with status ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ API connection failed: ${error.message}`, 'error');
+                log('💡 Make sure the API is running at https://localhost:7268', 'info');
+            }
+        };
+    </script>
+</body>
+</html>

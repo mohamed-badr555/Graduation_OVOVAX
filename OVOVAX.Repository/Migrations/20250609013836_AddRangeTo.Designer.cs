@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OVOVAX.Repository.Data;
 
@@ -11,18 +12,57 @@ using OVOVAX.Repository.Data;
 namespace OVOVAX.Repository.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250609013836_AddRangeTo")]
+    partial class AddRangeTo
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.11")
+                .HasAnnotation("ProductVersion", "9.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("OVOVAX.Core.Entities.Injection.InjectionOperation", b =>
+            modelBuilder.Entity("OVOVAX.Core.Entities.Injection.InjectionRecord", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EggNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InjectionSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("InjectionTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double>("VolumeInjected")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("float(18)");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("InjectionSessionId");
+
+                    b.ToTable("InjectionRecords");
+                });
+
+            modelBuilder.Entity("OVOVAX.Core.Entities.Injection.InjectionSession", b =>
                 {
                     b.Property<int>("ID")
                         .ValueGeneratedOnAdd()
@@ -40,11 +80,11 @@ namespace OVOVAX.Repository.Migrations
                         .HasColumnType("int");
 
                     b.Property<double>("RangeOfInfraredFrom")
-                        .HasPrecision(18, 3)
+                        .HasPrecision(18, 2)
                         .HasColumnType("float(18)");
 
                     b.Property<double>("RangeOfInfraredTo")
-                        .HasPrecision(18, 3)
+                        .HasPrecision(18, 2)
                         .HasColumnType("float(18)");
 
                     b.Property<DateTime>("StartTime")
@@ -54,19 +94,19 @@ namespace OVOVAX.Repository.Migrations
                         .HasColumnType("int");
 
                     b.Property<double>("StepOfInjection")
-                        .HasPrecision(18, 3)
+                        .HasPrecision(18, 2)
                         .HasColumnType("float(18)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<double>("VolumeOfLiquid")
-                        .HasPrecision(18, 3)
+                        .HasPrecision(18, 2)
                         .HasColumnType("float(18)");
 
                     b.HasKey("ID");
 
-                    b.ToTable("InjectionOperations");
+                    b.ToTable("InjectionSessions");
                 });
 
             modelBuilder.Entity("OVOVAX.Core.Entities.ManualControl.MovementCommand", b =>
@@ -98,6 +138,10 @@ namespace OVOVAX.Repository.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<double>("Step")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("float(18)");
+
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime2");
 
@@ -120,15 +164,15 @@ namespace OVOVAX.Repository.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<double>("DepthMeasurement")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("float(18)");
+
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ScanTime")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("SensorReadings")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -139,6 +183,22 @@ namespace OVOVAX.Repository.Migrations
                     b.HasKey("ID");
 
                     b.ToTable("ScanResults");
+                });
+
+            modelBuilder.Entity("OVOVAX.Core.Entities.Injection.InjectionRecord", b =>
+                {
+                    b.HasOne("OVOVAX.Core.Entities.Injection.InjectionSession", "InjectionSession")
+                        .WithMany("InjectionRecords")
+                        .HasForeignKey("InjectionSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InjectionSession");
+                });
+
+            modelBuilder.Entity("OVOVAX.Core.Entities.Injection.InjectionSession", b =>
+                {
+                    b.Navigation("InjectionRecords");
                 });
 #pragma warning restore 612, 618
         }

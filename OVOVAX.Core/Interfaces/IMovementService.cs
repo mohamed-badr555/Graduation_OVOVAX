@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using OVOVAX.Core.DTOs.ManualControl;
+using OVOVAX.Core.Entities.ManualControl;
 
 namespace OVOVAX.Core.Interfaces
 {
     public interface IMovementService
     {
-        Task<MovementResponseDto> MoveAxisAsync(MovementRequestDto request);
-        Task<MovementResponseDto> HomeAxesAsync(HomeRequestDto request);
-        Task<IEnumerable<MovementHistoryDto>> GetMovementHistoryAsync();
+        Task<MovementCommand> MoveAxisAsync(string axis, int direction, int speed = 50);
+        Task<MovementCommand> HomeAxesAsync(int speed = 50);
+        Task<IEnumerable<MovementCommand>> GetMovementHistoryAsync();
         Task<object> GetMovementStatusAsync();
     }
 }

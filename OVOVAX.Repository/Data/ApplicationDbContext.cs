@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System;
 using OVOVAX.Core.Entities;
 using OVOVAX.Core.Entities.Scanner;
 using OVOVAX.Core.Entities.Injection;
@@ -8,47 +10,42 @@ namespace OVOVAX.Repository.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
-
-        public DbSet<ScanResult> ScanResults { get; set; }
-        public DbSet<InjectionSession> InjectionSessions { get; set; }
-        public DbSet<InjectionRecord> InjectionRecords { get; set; }
-        public DbSet<MovementCommand> MovementCommands { get; set; }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }        public DbSet<ScanResult> ScanResults { get; set; }
+        public DbSet<InjectionOperation> InjectionOperations { get; set; }
+        public DbSet<MovementCommand> MovementCommands { get; set; }        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure relationships
-            modelBuilder.Entity<InjectionRecord>()
-                .HasOne(ir => ir.InjectionSession)
-                .WithMany(iss => iss.InjectionRecords)
-                .HasForeignKey(ir => ir.InjectionSessionId);
-
-            // Configure property precision for SQL Server
+            // Configure ScanResult - SensorReadings will be stored as comma-separated string
             modelBuilder.Entity<ScanResult>()
-                .Property(s => s.DepthMeasurement)
-                .HasPrecision(18, 2);
+                .Property(s => s.SensorReadings)
+                .HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                          .Select(double.Parse).ToList()
+                )
+                .Metadata.SetValueComparer(
+                    new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<double>>(
+                        (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
+                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c == null ? new List<double>() : c.ToList()
+                    )
+                );
 
-            modelBuilder.Entity<InjectionSession>()
-                .Property(iss => iss.RangeOfInfrared)
-                .HasPrecision(18, 2);
+            modelBuilder.Entity<InjectionOperation>()
+                .Property(io => io.RangeOfInfraredFrom)
+                .HasPrecision(18, 3);
+                
+            modelBuilder.Entity<InjectionOperation>()
+                .Property(io => io.RangeOfInfraredTo)
+                .HasPrecision(18, 3);
 
-            modelBuilder.Entity<InjectionSession>()
-                .Property(iss => iss.StepOfInjection)
-                .HasPrecision(18, 2);
+            modelBuilder.Entity<InjectionOperation>()
+                .Property(io => io.StepOfInjection)
+                .HasPrecision(18, 3);
 
-            modelBuilder.Entity<InjectionSession>()
-                .Property(iss => iss.VolumeOfLiquid)
-                .HasPrecision(18, 2);
-
-            modelBuilder.Entity<InjectionRecord>()
-                .Property(ir => ir.VolumeInjected)
-                .HasPrecision(18, 2);
-
-            modelBuilder.Entity<MovementCommand>()
-                .Property(mc => mc.Step)
-                .HasPrecision(18, 2);
-        }
+            modelBuilder.Entity<InjectionOperation>()
+                .Property(io => io.VolumeOfLiquid)
+                .HasPrecision(18, 3);        }
     }
 }

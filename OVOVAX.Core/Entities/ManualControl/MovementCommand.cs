@@ -8,7 +8,6 @@ namespace OVOVAX.Core.Entities.ManualControl
         public MovementAction Action { get; set; }
         public Axis Axis { get; set; }
         public MovementDirection Direction { get; set; }
-        public double Step { get; set; } // in mm
         public int Speed { get; set; } // percentage
         public MovementStatus Status { get; set; }
         public string? ErrorMessage { get; set; }

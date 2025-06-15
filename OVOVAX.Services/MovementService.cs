@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using AutoMapper;
-using OVOVAX.Core.DTOs.ManualControl;
+using System.Text.Json;
 using OVOVAX.Core.Entities.ManualControl;
 using OVOVAX.Core.Interfaces;
-using OVOVAX.Core.Specifications;
 using OVOVAX.Core.Specifications.ManualControl;
 
 namespace OVOVAX.Services
@@ -13,99 +11,126 @@ namespace OVOVAX.Services
     public class MovementService : IMovementService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly IEsp32Service _esp32Service;
 
-        public MovementService(IUnitOfWork unitOfWork, IMapper mapper)
+        public MovementService(IUnitOfWork unitOfWork, IEsp32Service esp32Service)
         {
             _unitOfWork = unitOfWork;
-            _mapper = mapper;
-        }
-
-        public async Task<MovementResponseDto> MoveAxisAsync(MovementRequestDto request)
+            _esp32Service = esp32Service;
+        }        public async Task<MovementCommand> MoveAxisAsync(string axis, int direction, int speed = 50)
         {
             try
             {
-                // TODO: Hardware communication logic here
-                // await hardwareService.MoveAxis(request.Axis, request.Direction, request.Step, request.Speed);
+                // Send command to ESP32
+                var esp32Command = new
+                {
+                    action = "move",
+                    axis = axis.ToUpper(),
+                    direction = direction,
+                    speed = speed
+                };
+
+                var esp32Response = await _esp32Service.SendCommandAsync("movement/move", esp32Command);
+                
+                // Parse and validate axis parameter
+                if (!Enum.TryParse<Axis>(axis, true, out var axisEnum))
+                {
+                    throw new ArgumentException($"Invalid axis: {axis}");
+                }
+
+                // Parse direction to enum
+                var directionEnum = direction > 0 ? MovementDirection.Positive : MovementDirection.Negative;
 
                 var movementCommand = new MovementCommand
                 {
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                        TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time")),
                     Action = MovementAction.Move,
-                    Axis = request.Axis.ToLower() == "z" ? Axis.Z : Axis.Y,
-                    Direction = (MovementDirection)request.Direction,
-                    Step = request.Step,
-                    Speed = request.Speed,
+                    Axis = axisEnum,
+                    Direction = directionEnum,
+                    Speed = speed,
                     Status = MovementStatus.Completed
                 };
 
-                _unitOfWork.Repository<MovementCommand>().Add(movementCommand);
+                await _unitOfWork.Repository<MovementCommand>().Add(movementCommand);
                 await _unitOfWork.Complete();
 
-                return new MovementResponseDto
-                {
-                    Success = true,
-                    Message = $"Moved {request.Axis} axis {(request.Direction > 0 ? "positive" : "negative")} by {request.Step}mm",
-                    MovementId = movementCommand.ID
-                };
+                return movementCommand;
             }
-            catch (Exception ex)
-            {
-                return new MovementResponseDto
+            catch (Exception)
+            {                var failedCommand = new MovementCommand
                 {
-                    Success = false,
-                    Message = $"Failed to move axis: {ex.Message}"
+                    Timestamp = DateTime.Now,
+                    Action = MovementAction.Move,
+                    Axis = Enum.TryParse<Axis>(axis, true, out var axisEnum) ? axisEnum : Axis.Z,
+                    Direction = direction > 0 ? MovementDirection.Positive : MovementDirection.Negative,
+                    Speed = speed,
+                    Status = MovementStatus.Failed
                 };
-            }
-        }
 
-        public async Task<MovementResponseDto> HomeAxesAsync(HomeRequestDto request)
+                await _unitOfWork.Repository<MovementCommand>().Add(failedCommand);
+                await _unitOfWork.Complete();                throw;
+            }
+        }        public async Task<MovementCommand> HomeAxesAsync(int speed = 50)
         {
             try
             {
-                // TODO: Hardware communication logic here
-                // await hardwareService.HomeAxes();
+                // Send home command to ESP32 FIRST
+                var esp32Command = new
+                {
+                    speed = speed
+                };
 
+                var esp32Response = await _esp32Service.SendCommandAsync("movement/home", esp32Command);
+                var response = JsonSerializer.Deserialize<JsonElement>(esp32Response);
+                bool success = response.GetProperty("success").GetBoolean();
+
+                // Create home command record in database
                 var movementCommand = new MovementCommand
                 {
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                        TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time")),
                     Action = MovementAction.Home,
                     Axis = Axis.All,
                     Direction = MovementDirection.Positive,
-                    Step = 0,
-                    Speed = 50,
-                    Status = MovementStatus.Completed
+                    Speed = speed,
+                    Status = success ? MovementStatus.Completed : MovementStatus.Failed
                 };
 
-                _unitOfWork.Repository<MovementCommand>().Add(movementCommand);
+                await _unitOfWork.Repository<MovementCommand>().Add(movementCommand);
                 await _unitOfWork.Complete();
 
-                return new MovementResponseDto
-                {
-                    Success = true,
-                    Message = "All axes homed successfully",
-                    MovementId = movementCommand.ID
-                };
+                return movementCommand;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return new MovementResponseDto
+                var failedCommand = new MovementCommand
                 {
-                    Success = false,
-                    Message = $"Failed to home axes: {ex.Message}"
+                    Timestamp = DateTime.Now,
+                    Action = MovementAction.Home,
+                    Axis = Axis.All,
+                    Direction = MovementDirection.Positive,
+                    Speed = speed,
+                    Status = MovementStatus.Failed
                 };
+
+                await _unitOfWork.Repository<MovementCommand>().Add(failedCommand);
+                await _unitOfWork.Complete();
+
+                throw;
             }
         }
 
-        public async Task<IEnumerable<MovementHistoryDto>> GetMovementHistoryAsync()
+        public async Task<IEnumerable<MovementCommand>> GetMovementHistoryAsync()
         {
             var spec = new RecentMovementsSpecification(10);
             var movements = await _unitOfWork.Repository<MovementCommand>().ListAsync(spec);
-            return _mapper.Map<IEnumerable<MovementHistoryDto>>(movements);
-        }        public async Task<object> GetMovementStatusAsync()
+            return movements;
+        }  
+        public async Task<object> GetMovementStatusAsync()
         {
-            // TODO: Get actual movement status from hardware
-            await Task.Delay(50); // Simulate hardware status check delay
+            // Return movement status based on database records
+            await Task.Delay(10); // Minimal delay for async consistency
             return new
             {
                 IsConnected = true,
