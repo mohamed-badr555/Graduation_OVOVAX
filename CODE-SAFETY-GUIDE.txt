@@ -1,0 +1,22 @@
+===========================================
+OVOVAX PROJECT - CODE SAFETY CHECKLIST
+===========================================
+
+✅ BEFORE CLOSING IDE:
+   1. Ctrl+S (Save all files)
+   2. Run: git add .
+   3. Run: git commit -m "Description"
+   
+✅ EVERY HOUR:
+   - Double-click quick-save.bat
+   
+✅ END OF DAY:
+   - Double-click daily-backup.bat
+   - Run: git push origin master
+
+✅ EMERGENCY RECOVERY:
+   - git status (check what's changed)
+   - git checkout HEAD -- . (restore from last commit)
+   - Check backups in D:\4T2\Graduation\Backups\
+
+===========================================

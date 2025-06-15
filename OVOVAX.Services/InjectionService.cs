@@ -18,7 +18,8 @@ namespace OVOVAX.Services
         {
             _unitOfWork = unitOfWork;
             _esp32Service = esp32Service;
-        }        public async Task<InjectionOperation> StartInjectionAsync(double rangeOfInfraredfrom, double rangeOfInfraredto, double stepOfInjection, double volumeOfLiquid, int numberOfElements)
+        }   
+        public async Task<InjectionOperation> StartInjectionAsync(double rangeOfInfraredfrom, double rangeOfInfraredto, double stepOfInjection, double volumeOfLiquid, int numberOfElements)
         {
             try
             {
@@ -34,9 +35,7 @@ namespace OVOVAX.Services
 
                 var esp32Response = await _esp32Service.SendCommandAsync("injection/start", esp32Command);
                 var response = JsonSerializer.Deserialize<JsonElement>(esp32Response);
-                bool success = response.GetProperty("success").GetBoolean();
-
-                // Create injection operation record in database
+                bool success = response.GetProperty("success").GetBoolean();                // Create injection operation record in database
                 var injectionOperation = new InjectionOperation
                 {
                     StartTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
@@ -45,8 +44,9 @@ namespace OVOVAX.Services
                     RangeOfInfraredTo = rangeOfInfraredto,
                     StepOfInjection = stepOfInjection,
                     VolumeOfLiquid = volumeOfLiquid,
-                    NumberOfElements = numberOfElements,                    Status = success ? InjectionStatus.Completed : InjectionStatus.Failed,
-                    EndTime = success ? DateTime.Now : null
+                    NumberOfElements = numberOfElements,       
+                    Status = success ? InjectionStatus.Active : InjectionStatus.Failed,
+                    EndTime = success ? null : DateTime.Now
                 };
 
                 await _unitOfWork.Repository<InjectionOperation>().Add(injectionOperation);
@@ -55,14 +55,14 @@ namespace OVOVAX.Services
                 return injectionOperation;
             }
             catch (Exception)
-            {
-                var failedOperation = new InjectionOperation
+            {                var failedOperation = new InjectionOperation
                 {
                     StartTime = DateTime.Now,
                     RangeOfInfraredFrom = rangeOfInfraredfrom,
                     RangeOfInfraredTo = rangeOfInfraredto,
                     StepOfInjection = stepOfInjection,
-                    VolumeOfLiquid = volumeOfLiquid,                    NumberOfElements = numberOfElements,
+                    VolumeOfLiquid = volumeOfLiquid,
+                    NumberOfElements = numberOfElements,
                     Status = InjectionStatus.Failed
                 };
 
@@ -71,7 +71,8 @@ namespace OVOVAX.Services
 
                 throw;
             }
-        }        public async Task<bool> StopInjectionAsync(int operationId)
+        }   
+        public async Task<bool> StopInjectionAsync(int operationId)
         {
             try
             {
@@ -140,9 +141,55 @@ namespace OVOVAX.Services
 
         public async Task<InjectionOperation?> FindIsCompleteOrNot(int operationId)
         {
-            var operation = await _unitOfWork.Repository<InjectionOperation>()
-                .GetByIdAsync(operationId);
-            return operation;
+            try
+            {
+                var operation = await _unitOfWork.Repository<InjectionOperation>()
+                    .GetByIdAsync(operationId);
+
+                if (operation == null)
+                    return null;
+
+                // If operation is still active, check ESP32 status
+                if (operation.Status == InjectionStatus.Active)
+                {
+                    try
+                    {
+                        var esp32Response = await _esp32Service.SendCommandAsync("injection/status");
+                        var response = JsonSerializer.Deserialize<JsonElement>(esp32Response);
+                        
+                        bool isRunning = response.GetProperty("isRunning").GetBoolean();
+                        bool isCompleted = response.GetProperty("isCompleted").GetBoolean();
+                        
+                        // Update status based on ESP32 response
+                        if (isCompleted)
+                        {
+                            operation.Status = InjectionStatus.Completed;
+                            operation.EndTime = DateTime.Now;
+                            _unitOfWork.Repository<InjectionOperation>().Update(operation);
+                            await _unitOfWork.Complete();
+                        }
+                        else if (!isRunning)
+                        {
+                            // Injection stopped but not completed
+                            operation.Status = InjectionStatus.Stopped;
+                            operation.EndTime = DateTime.Now;
+                            _unitOfWork.Repository<InjectionOperation>().Update(operation);
+                            await _unitOfWork.Complete();
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // If ESP32 communication fails, operation might have failed
+                        // Keep current status but don't throw
+                    }
+                }
+
+                return operation;
+            }
+            catch (Exception)
+            {
+                throw;
+            }
         }
 
 
