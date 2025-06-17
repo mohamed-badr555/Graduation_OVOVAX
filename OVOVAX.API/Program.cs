@@ -1,4 +1,3 @@
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using OVOVAX.Core.Interfaces;
@@ -23,9 +22,7 @@ namespace OVOVAX.API
 
             // Generic Repository Pattern
             builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-            // Business Services
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();            // Business Services
             builder.Services.AddScoped<IScannerService, ScannerService>();
             builder.Services.AddScoped<IInjectionService, InjectionService>();
             builder.Services.AddScoped<IMovementService, MovementService>();
@@ -33,6 +30,10 @@ namespace OVOVAX.API
             // ESP32 Communication
             builder.Services.AddHttpClient();
             builder.Services.AddScoped<IEsp32Service, Esp32Service>();
+            
+            // Python API Communication
+            builder.Services.AddHttpClient<IPythonApiService, PythonApiService>();
+            builder.Services.AddScoped<IPythonApiService, PythonApiService>();
             
             // AutoMapper
             builder.Services.AddAutoMapper(typeof(MappingProfile));// CORS for React frontend

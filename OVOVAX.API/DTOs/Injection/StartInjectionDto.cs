@@ -12,7 +12,7 @@ namespace OVOVAX.API.DTOs.Injection
         public double RangeOfInfraredTo { get; set; }
 
         [Required]
-        [Range(0.1, 100, ErrorMessage = "Step must be between 0.1 and 100 mm")]
+        [Range(0.1, 100000, ErrorMessage = "Step must be between 0.1 and 100000 ")]
         public double StepOfInjection { get; set; }
 
 
