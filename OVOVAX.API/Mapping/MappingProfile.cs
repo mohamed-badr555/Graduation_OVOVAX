@@ -30,13 +30,12 @@ namespace OVOVAX.API.Mapping
                 .ForMember(dest => dest.RangeTo, opt => opt.MapFrom(src => src.RangeOfInfraredTo))
                 .ForMember(dest => dest.Step, opt => opt.MapFrom(src => src.StepOfInjection))
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
-             
-
-            // Movement mappings
+                 // Movement mappings
             CreateMap<MovementCommand, MovementHistoryDto>()
                 .ForMember(dest => dest.Timestamp, opt => opt.MapFrom(src => src.Timestamp.ToString()))
                 .ForMember(dest => dest.Action, opt => opt.MapFrom(src => src.Action.ToString()))
                 .ForMember(dest => dest.Speed, opt => opt.MapFrom(src => src.Speed))
+                .ForMember(dest => dest.Steps, opt => opt.MapFrom(src => src.Steps))
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
                 .ForMember(dest => dest.Direction, opt => opt.MapFrom(src => src.Direction.ToString()));
 

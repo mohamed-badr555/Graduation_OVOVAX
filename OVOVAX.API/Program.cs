@@ -1,5 +1,6 @@
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using OVOVAX.Core.Interfaces;
 using OVOVAX.Repository;
 using OVOVAX.Repository.Data;
@@ -15,15 +16,16 @@ namespace OVOVAX.API
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-            builder.Services.AddControllers();
-            
+            builder.Services.AddControllers();            
             // Configure Entity Framework
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             // Generic Repository Pattern
             builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();            // Business Services
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            // Business Services
             builder.Services.AddScoped<IScannerService, ScannerService>();
             builder.Services.AddScoped<IInjectionService, InjectionService>();
             builder.Services.AddScoped<IMovementService, MovementService>();
@@ -33,7 +35,7 @@ namespace OVOVAX.API
             builder.Services.AddScoped<IEsp32Service, Esp32Service>();
             
             // AutoMapper
-            builder.Services.AddAutoMapper(typeof(MappingProfile));            // CORS for React frontend
+            builder.Services.AddAutoMapper(typeof(MappingProfile));// CORS for React frontend
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowReactApp", policy =>
@@ -49,9 +51,7 @@ namespace OVOVAX.API
                           .AllowAnyMethod()
                           .AllowCredentials(); // Allow credentials if needed
                 });
-            });
-
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+            });            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
@@ -62,15 +62,10 @@ namespace OVOVAX.API
             //{
                 app.UseSwagger();
                 app.UseSwaggerUI();
-            //}
-
-            app.UseHttpsRedirection();
+            //}            app.UseHttpsRedirection();
 
             // Enable CORS
             app.UseCors("AllowReactApp");
-            app.UseHttpsRedirection();
-
-            app.UseAuthorization();
 
             app.MapControllers();
 

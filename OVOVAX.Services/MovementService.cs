@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Text.Json;
 using OVOVAX.Core.Entities.ManualControl;
@@ -17,7 +18,7 @@ namespace OVOVAX.Services
         {
             _unitOfWork = unitOfWork;
             _esp32Service = esp32Service;
-        }        public async Task<MovementCommand> MoveAxisAsync(string axis, int direction, int speed = 50)
+        }        public async Task<MovementCommand> MoveAxisAsync(string axis, int direction, int speed = 50, int steps = 1000)
         {
             try
             {
@@ -27,7 +28,8 @@ namespace OVOVAX.Services
                     action = "move",
                     axis = axis.ToUpper(),
                     direction = direction,
-                    speed = speed
+                    speed = speed,
+                    steps = steps
                 };
 
                 var esp32Response = await _esp32Service.SendCommandAsync("movement/move", esp32Command);
@@ -49,6 +51,7 @@ namespace OVOVAX.Services
                     Axis = axisEnum,
                     Direction = directionEnum,
                     Speed = speed,
+                    Steps = steps,
                     Status = MovementStatus.Completed
                 };
 
@@ -65,17 +68,18 @@ namespace OVOVAX.Services
                     Axis = Enum.TryParse<Axis>(axis, true, out var axisEnum) ? axisEnum : Axis.Z,
                     Direction = direction > 0 ? MovementDirection.Positive : MovementDirection.Negative,
                     Speed = speed,
+                    Steps = steps,
                     Status = MovementStatus.Failed
                 };
 
                 await _unitOfWork.Repository<MovementCommand>().Add(failedCommand);
                 await _unitOfWork.Complete();                throw;
             }
-        }        public async Task<MovementCommand> HomeAxesAsync(int speed = 50)
+        }public async Task<MovementCommand> HomeAxesAsync(int speed = 50)
         {
             try
             {
-                // Send home command to ESP32 FIRST
+                // Send home command to ESP32 - ESP32 will respond immediately and then do homing
                 var esp32Command = new
                 {
                     speed = speed
@@ -83,9 +87,8 @@ namespace OVOVAX.Services
 
                 var esp32Response = await _esp32Service.SendCommandAsync("movement/home", esp32Command);
                 var response = JsonSerializer.Deserialize<JsonElement>(esp32Response);
-                bool success = response.GetProperty("success").GetBoolean();
-
-                // Create home command record in database
+                bool success = response.GetProperty("success").GetBoolean();                // Create home command record in database with "In Progress" status
+                // since homing takes time and ESP32 responds before completion
                 var movementCommand = new MovementCommand
                 {
                     Timestamp = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
@@ -94,7 +97,8 @@ namespace OVOVAX.Services
                     Axis = Axis.All,
                     Direction = MovementDirection.Positive,
                     Speed = speed,
-                    Status = success ? MovementStatus.Completed : MovementStatus.Failed
+                    Steps = 0, // Homing doesn't use specific steps
+                    Status = success ? MovementStatus.InProgress : MovementStatus.Failed
                 };
 
                 await _unitOfWork.Repository<MovementCommand>().Add(movementCommand);
@@ -103,14 +107,14 @@ namespace OVOVAX.Services
                 return movementCommand;
             }
             catch (Exception)
-            {
-                var failedCommand = new MovementCommand
+            {                var failedCommand = new MovementCommand
                 {
                     Timestamp = DateTime.Now,
                     Action = MovementAction.Home,
                     Axis = Axis.All,
                     Direction = MovementDirection.Positive,
                     Speed = speed,
+                    Steps = 0, // Homing doesn't use specific steps
                     Status = MovementStatus.Failed
                 };
 
@@ -126,19 +130,65 @@ namespace OVOVAX.Services
             var spec = new RecentMovementsSpecification(10);
             var movements = await _unitOfWork.Repository<MovementCommand>().ListAsync(spec);
             return movements;
-        }  
-        public async Task<object> GetMovementStatusAsync()
+        }      
+        public async Task<object> GetMovementStatusAsync(int? homingOperationId = null)
         {
-            // Return movement status based on database records
-            await Task.Delay(10); // Minimal delay for async consistency
-            return new
+            try
             {
-                IsConnected = true,
-                ZAxisPosition = 0.0,
-                YAxisPosition = 0.0,
-                IsHomed = true,
-                Status = "Ready"
-            };
+                // Get status from ESP32 to check if homing is complete
+                var esp32Response = await _esp32Service.SendCommandAsync("movement/status");
+                var response = JsonSerializer.Deserialize<JsonElement>(esp32Response);
+                
+                bool isHomed = response.GetProperty("isHomed").GetBoolean();
+                bool limitSwitch1 = response.GetProperty("limitSwitch1").GetBoolean();
+                bool limitSwitch2 = response.GetProperty("limitSwitch2").GetBoolean();                  // Check for specific homing operation and update its status if homing is complete
+                if (isHomed && homingOperationId.HasValue)
+                {
+                    // Find the specific homing operation and mark it as completed
+                    var homingOperation = await _unitOfWork.Repository<MovementCommand>()
+                        .GetByIdAsync(homingOperationId.Value);
+                    
+                    if (homingOperation != null && 
+                        homingOperation.Action == MovementAction.Home && 
+                        homingOperation.Status == MovementStatus.InProgress)
+                    {
+                        homingOperation.Status = MovementStatus.Completed;
+                        _unitOfWork.Repository<MovementCommand>().Update(homingOperation);
+                        await _unitOfWork.Complete();
+                    }
+                }
+                
+                return new
+                {
+                    IsConnected = true,
+                    ZAxisPosition = response.GetProperty("zPosition").GetDouble(),
+                    YAxisPosition = response.GetProperty("yPosition").GetDouble(),
+                    IsHomed = isHomed,
+                    IsMoving = response.GetProperty("isMoving").GetBoolean(),
+                    Status = isHomed ? "Ready" : "Homing in progress",
+                    LimitSwitch1 = limitSwitch1,
+                    LimitSwitch2 = limitSwitch2,
+                    LimitSwitch3 = response.GetProperty("limitSwitch3").GetBoolean(),
+                    Timestamp = response.GetProperty("timestamp").GetInt64()
+                };
+            }
+            catch (Exception)
+            {
+                // If ESP32 communication fails, return basic status
+                return new
+                {
+                    IsConnected = false,
+                    ZAxisPosition = 0.0,
+                    YAxisPosition = 0.0,
+                    IsHomed = false,
+                    IsMoving = false,
+                    Status = "ESP32 Connection Failed",
+                    LimitSwitch1 = false,
+                    LimitSwitch2 = false,
+                    LimitSwitch3 = false,
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                };
+            }
         }
     }
 }

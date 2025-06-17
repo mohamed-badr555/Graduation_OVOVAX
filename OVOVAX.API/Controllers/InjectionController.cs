@@ -17,12 +17,13 @@ namespace OVOVAX.API.Controllers
         {
             _injectionService = injectionService;
             _mapper = mapper;
-        }
-        [HttpPost("status")]
-         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<bool>> GetInjectionStatusCompletedOrNot([FromBody] StopInjectionDto request)
+        }        [HttpPost("status")]
+        [ProducesResponseType(typeof(InjectionResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<InjectionResponseDto>> GetInjectionStatusCompletedOrNot([FromBody] StopInjectionDto request)
         {
- 
+            try
+            {
                 var operation = await _injectionService.FindIsCompleteOrNot(request.OperationId);
                 if (operation == null)
                 {
@@ -33,17 +34,39 @@ namespace OVOVAX.API.Controllers
                         OperationId = request.OperationId
                     });
                 }
-                if (operation.Status != InjectionStatus.Completed)
-                {
-                    return Ok(false);
-                }
-                else
-                {
-                    return Ok(true);
-                }
 
-          
-            
+                string statusMessage = operation.Status switch
+                {
+                    InjectionStatus.Active => "Injection is currently active",
+                    InjectionStatus.Completed => "Injection completed successfully",
+                    InjectionStatus.Stopped => "Injection was stopped",
+                    InjectionStatus.Failed => "Injection failed",
+                    _ => "Unknown status"
+                };
+
+                return Ok(new InjectionResponseDto
+                {
+                    Success = true,
+                    Message = statusMessage,
+                    OperationId = request.OperationId,
+                    Data = new { 
+                        Status = operation.Status.ToString(),
+                        IsCompleted = operation.Status == InjectionStatus.Completed,
+                        IsActive = operation.Status == InjectionStatus.Active,
+                        StartTime = operation.StartTime,
+                        EndTime = operation.EndTime
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new InjectionResponseDto
+                {
+                    Success = false,
+                    Message = $"Failed to get injection status: {ex.Message}",
+                    OperationId = request.OperationId
+                });
+            }
         }
 
         [HttpPost("start")]
@@ -107,8 +130,7 @@ namespace OVOVAX.API.Controllers
                 };
                 return BadRequest(response);
             }
-        }  
-        [HttpGet("history")]
+        }        [HttpGet("history")]
         [ProducesResponseType(typeof(IEnumerable<InjectionHistoryDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -123,34 +145,6 @@ namespace OVOVAX.API.Controllers
             catch (Exception ex)
             {
                 return BadRequest($"Failed to get injection history: {ex.Message}");
-            }
-        }      
-        [HttpPost("complete")]
-        [ProducesResponseType(typeof(InjectionResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(InjectionResponseDto), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(InjectionResponseDto), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<InjectionResponseDto>> CompleteInjection([FromBody] StopInjectionDto request) // Using StopInjectionDto as it has the same structure
-        {
-            try
-            {
-                var success = await _injectionService.CompleteInjectionAsync(request.OperationId);
-                var response = new InjectionResponseDto
-                {
-                    Success = success,
-                    Message = success ? "Injection completed successfully" : "Failed to complete injection - operation not found or not active",
-                    OperationId = request.OperationId,
-                };
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                var response = new InjectionResponseDto
-                {
-                    Success = false,
-                    Message = $"Failed to complete injection: {ex.Message}",
-                    OperationId = request.OperationId,
-                };
-                return BadRequest(response);
             }
         }
     }

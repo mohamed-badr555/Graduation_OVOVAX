@@ -10,9 +10,11 @@ namespace OVOVAX.Repository.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }        public DbSet<ScanResult> ScanResults { get; set; }
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+        public DbSet<ScanResult> ScanResults { get; set; }
         public DbSet<InjectionOperation> InjectionOperations { get; set; }
-        public DbSet<MovementCommand> MovementCommands { get; set; }        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        public DbSet<MovementCommand> MovementCommands { get; set; }    
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 

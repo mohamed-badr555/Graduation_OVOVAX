@@ -14,6 +14,7 @@ namespace OVOVAX.API.Controllers
 
         public MovementController(IMovementService movementService, IMapper mapper)
         {
+            
             _movementService = movementService;
             _mapper = mapper;
         }      
@@ -25,7 +26,8 @@ namespace OVOVAX.API.Controllers
                 var movementCommand = await _movementService.MoveAxisAsync(
                     request.Axis.ToString(), 
                     (int)request.Direction, 
-                    request.Speed);
+                    request.Speed,
+                    request.Steps);
                 
                 var response = new MovementResponseDto
                 {
@@ -46,8 +48,7 @@ namespace OVOVAX.API.Controllers
             }
         }  
         [HttpPost("home")]
-        public async Task<ActionResult<MovementResponseDto>> HomeAxes([FromBody] HomeRequestDto request)
-        {
+        public async Task<ActionResult<MovementResponseDto>> HomeAxes([FromBody] HomeRequestDto request)        {
             try
             {
                 var movementCommand = await _movementService.HomeAxesAsync(request.Speed);
@@ -55,7 +56,7 @@ namespace OVOVAX.API.Controllers
                 var response = new MovementResponseDto
                 {
                     Success = true,
-                    Message = "All axes homed successfully",
+                    Message = "Homing started - check status endpoint to monitor progress",
                     MovementId = movementCommand.ID
                 };
                 return Ok(response);
@@ -65,23 +66,26 @@ namespace OVOVAX.API.Controllers
                 var response = new MovementResponseDto
                 {
                     Success = false,
-                    Message = $"Failed to home axes: {ex.Message}"
+                    Message = $"Failed to start homing: {ex.Message}"
                 };
                 return BadRequest(response);
             }
-        }      
+        }
+
+
+
+
         [HttpGet("history")]
         public async Task<ActionResult<IEnumerable<MovementHistoryDto>>> GetMovementHistory()
         {
             var movements = await _movementService.GetMovementHistoryAsync();
             var historyDtos = _mapper.Map<IEnumerable<MovementHistoryDto>>(movements);
             return Ok(historyDtos);
-        }
-
-        [HttpGet("status")]
-        public async Task<ActionResult<object>> GetMovementStatus()
+        }        [HttpPost("status")]
+        public async Task<ActionResult<object>> GetMovementStatus([FromBody] MovementStatusRequestDto? request = null)
         {
-            var status = await _movementService.GetMovementStatusAsync();
+            var homingOperationId = request?.HomingOperationId;
+            var status = await _movementService.GetMovementStatusAsync(homingOperationId);
             return Ok(status);
         }
     }

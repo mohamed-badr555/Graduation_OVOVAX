@@ -1,15 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-
-
-  <ItemGroup>
-    <ProjectReference Include="..\OVOVAX.Core\OVOVAX.Core.csproj" />
-    <ProjectReference Include="..\OVOVAX.Repository\OVOVAX.Repository.csproj" />
-  </ItemGroup>
-
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\OVOVAX.Core\OVOVAX.Core.csproj" />
+		<ProjectReference Include="..\OVOVAX.Repository\OVOVAX.Repository.csproj" />
+	</ItemGroup>
 </Project>

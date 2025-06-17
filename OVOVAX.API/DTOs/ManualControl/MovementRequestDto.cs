@@ -14,5 +14,9 @@ namespace OVOVAX.API.DTOs.ManualControl
         [Required]
         [Range(1, 100, ErrorMessage = "Speed must be between 1 and 100")]
         public int Speed { get; set; }
+
+        [Required]
+        [Range(1, 10000, ErrorMessage = "Steps must be between 1 and 10000")]
+        public int Steps { get; set; } = 1000; // Default step count
     }
 }

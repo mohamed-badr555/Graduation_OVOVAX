@@ -71,17 +71,13 @@ namespace OVOVAX.Services
 
                 throw;
             }
-        }   
+        }      
+        
         public async Task<bool> StopInjectionAsync(int operationId)
         {
             try
             {
-                // Send stop injection command to ESP32
-                var esp32Response = await _esp32Service.SendCommandAsync("injection/stop");
-                var response = JsonSerializer.Deserialize<JsonElement>(esp32Response);
-                bool success = response.GetProperty("success").GetBoolean();
-
-                // Find and update the specific operation
+                // Find and validate the specific operation first
                 var operation = await _unitOfWork.Repository<InjectionOperation>()
                     .GetByIdAsync(operationId);
 
@@ -90,55 +86,51 @@ namespace OVOVAX.Services
                     return false; // Operation not found
                 }
 
-                operation.Status = success ? InjectionStatus.Stopped : InjectionStatus.Failed;
+                if (operation.Status != InjectionStatus.Active)
+                {
+                    return false; // Operation is not active, cannot stop
+                }
+
+                bool esp32Success = true;
+                
+                try
+                {
+                    // Try to send stop injection command to ESP32
+                    var esp32Command = new { operationId = operationId };
+                    var esp32Response = await _esp32Service.SendCommandAsync("injection/stop", esp32Command);
+                    var response = JsonSerializer.Deserialize<JsonElement>(esp32Response);
+                    esp32Success = response.GetProperty("success").GetBoolean();
+                }
+                catch (Exception)
+                {
+                    // If ESP32 communication fails, we'll still update the database
+                    // This handles cases where ESP32 endpoint doesn't exist or is unreachable
+                    esp32Success = false;
+                }
+
+                // Update the operation status regardless of ESP32 response
+                operation.Status = InjectionStatus.Stopped;
                 operation.EndTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
                         TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"));
                 _unitOfWork.Repository<InjectionOperation>().Update(operation);
 
                 await _unitOfWork.Complete();
-                return success;
-            }
-            catch (Exception)
-            {
-                throw; // Let the controller handle the exception
-            }
-        }
-
-        public async Task<bool> CompleteInjectionAsync(int operationId)
-        {
-            try
-            {
-                // Find and update the specific operation
-                var operation = await _unitOfWork.Repository<InjectionOperation>()
-                    .GetByIdAsync(operationId);
-
-                if (operation == null || operation.Status != InjectionStatus.Active)
-                {
-                    return false; // Operation not found or not active
-                }
-
-                operation.Status = InjectionStatus.Completed;
-                operation.EndTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
-                        TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time")); ;
-                _unitOfWork.Repository<InjectionOperation>().Update(operation);
-
-                await _unitOfWork.Complete();
+                
+                // Return true if database update was successful, even if ESP32 communication failed
                 return true;
             }
             catch (Exception)
             {
                 throw; // Let the controller handle the exception
             }
-        }
-
-        public async Task<IEnumerable<InjectionOperation>> GetInjectionHistoryAsync()
+        }  
+              public async Task<IEnumerable<InjectionOperation>> GetInjectionHistoryAsync()
         {
             var injectionOperations = await _unitOfWork.Repository<InjectionOperation>()
                 .ListAsync(new RecentInjectionOperationsSpecification(15));
 
             return injectionOperations;
         }
-
         public async Task<InjectionOperation?> FindIsCompleteOrNot(int operationId)
         {
             try
@@ -154,7 +146,8 @@ namespace OVOVAX.Services
                 {
                     try
                     {
-                        var esp32Response = await _esp32Service.SendCommandAsync("injection/status");
+                        var esp32Command = new { operationId = operationId };
+                        var esp32Response = await _esp32Service.SendCommandAsync("injection/status", esp32Command);
                         var response = JsonSerializer.Deserialize<JsonElement>(esp32Response);
                         
                         bool isRunning = response.GetProperty("isRunning").GetBoolean();
@@ -164,7 +157,8 @@ namespace OVOVAX.Services
                         if (isCompleted)
                         {
                             operation.Status = InjectionStatus.Completed;
-                            operation.EndTime = DateTime.Now;
+                            operation.EndTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                                TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"));
                             _unitOfWork.Repository<InjectionOperation>().Update(operation);
                             await _unitOfWork.Complete();
                         }
@@ -172,15 +166,17 @@ namespace OVOVAX.Services
                         {
                             // Injection stopped but not completed
                             operation.Status = InjectionStatus.Stopped;
-                            operation.EndTime = DateTime.Now;
+                            operation.EndTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                                TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time"));
                             _unitOfWork.Repository<InjectionOperation>().Update(operation);
                             await _unitOfWork.Complete();
                         }
                     }
                     catch (Exception)
                     {
-                        // If ESP32 communication fails, operation might have failed
-                        // Keep current status but don't throw
+                        // If ESP32 communication fails, keep current status
+                        // This prevents changing the status when we can't communicate with ESP32
+                        // The operation remains "Active" until we can confirm its actual status
                     }
                 }
 
