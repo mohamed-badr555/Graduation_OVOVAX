@@ -10,18 +10,19 @@ namespace OVOVAX.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _pythonApiBaseUrl;
-        private readonly ILogger<PythonApiService> _logger;
-
-        public PythonApiService(HttpClient httpClient, IConfiguration configuration, ILogger<PythonApiService> logger)
+        private readonly ILogger<PythonApiService> _logger;        public PythonApiService(HttpClient httpClient, IConfiguration configuration, ILogger<PythonApiService> logger)
         {
             _httpClient = httpClient;
             _logger = logger;
             
             // Get hostname URL from configuration
             _pythonApiBaseUrl = configuration["PythonApi:BaseUrl"] ?? "http://raspberrypi.local:5000";
-            _httpClient.Timeout = TimeSpan.FromSeconds(30);
             
-            _logger.LogInformation($"Python API configured for: {_pythonApiBaseUrl}");
+            // Increase timeout for AI model processing (5 minutes)
+            var timeoutSeconds = configuration.GetValue<int>("PythonApi:TimeoutSeconds", 300);
+            _httpClient.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            
+            _logger.LogInformation($"Python API configured for: {_pythonApiBaseUrl} with timeout: {timeoutSeconds}s");
         }
 
         public async Task<TrackDetectionResult> DetectTrackAsync()
@@ -157,6 +158,104 @@ namespace OVOVAX.Services
                     Timestamp = DateTime.UtcNow
                 };
             }
+        }        public async Task<TrackDetectionResult> DetectTrackWithRetryAsync(int maxRetries = 2, int delaySeconds = 5)
+        {
+            TrackDetectionResult? lastResult = null;
+            
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    _logger.LogInformation($"Track detection attempt {attempt}/{maxRetries}");
+                    
+                    lastResult = await DetectTrackAsync();
+                    
+                    if (lastResult.Success)
+                    {
+                        _logger.LogInformation($"Track detection successful on attempt {attempt}");
+                        return lastResult;
+                    }
+                    
+                    if (attempt < maxRetries)
+                    {
+                        _logger.LogWarning($"Track detection failed on attempt {attempt}, retrying in {delaySeconds} seconds...");
+                        await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Exception on track detection attempt {attempt}: {ex.Message}");
+                    if (attempt == maxRetries)
+                    {
+                        return new TrackDetectionResult
+                        {
+                            Success = false,
+                            ErrorMessage = $"Failed after {maxRetries} attempts. Last error: {ex.Message}"
+                        };
+                    }
+                    
+                    if (attempt < maxRetries)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+                    }
+                }
+            }
+
+            return lastResult ?? new TrackDetectionResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed after {maxRetries} attempts"
+            };
+        }        public async Task<CenterDetectionResult> DetectCenterWithRetryAsync(int maxRetries = 2, int delaySeconds = 5)
+        {
+            CenterDetectionResult? lastResult = null;
+            
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    _logger.LogInformation($"Center detection attempt {attempt}/{maxRetries}");
+                    
+                    lastResult = await DetectCenterAsync();
+                    
+                    if (lastResult.Success)
+                    {
+                        _logger.LogInformation($"Center detection successful on attempt {attempt}");
+                        return lastResult;
+                    }
+                    
+                    if (attempt < maxRetries)
+                    {
+                        _logger.LogWarning($"Center detection failed on attempt {attempt}, retrying in {delaySeconds} seconds...");
+                        await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Exception on center detection attempt {attempt}: {ex.Message}");
+                    if (attempt == maxRetries)
+                    {
+                        return new CenterDetectionResult
+                        {
+                            Success = false,
+                            ErrorMessage = $"Failed after {maxRetries} attempts. Last error: {ex.Message}",
+                            Timestamp = DateTime.UtcNow
+                        };
+                    }
+                    
+                    if (attempt < maxRetries)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+                    }
+                }
+            }
+
+            return lastResult ?? new CenterDetectionResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed after {maxRetries} attempts",
+                Timestamp = DateTime.UtcNow
+            };
         }
 
         public async Task<bool> CheckHealthAsync()
@@ -167,19 +266,21 @@ namespace OVOVAX.Services
                 
                 var response = await _httpClient.GetAsync($"{_pythonApiBaseUrl}/api/health");
                 
-                if (response.IsSuccessStatusCode)
+                if (!response.IsSuccessStatusCode)
                 {
-                    var content = await response.Content.ReadAsStringAsync();
-                    _logger.LogInformation($"Python API health check successful: {content}");
-                    return true;
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Python API health check returned {response.StatusCode}: {errorContent}");
+                    return false;
                 }
+                  var responseJson = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation($"Python API health response: {responseJson}");
                 
-                _logger.LogWarning($"Python API health check failed: {response.StatusCode}");
-                return false;
+                // Simply return true if we get a successful response
+                return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Python API health check error: {ex.Message}");
+                _logger.LogError($"Error checking Python API health: {ex.Message}");
                 return false;
             }
         }

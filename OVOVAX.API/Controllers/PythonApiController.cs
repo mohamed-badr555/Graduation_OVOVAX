@@ -17,9 +17,7 @@ namespace OVOVAX.API.Controllers
         {
             _pythonApiService = pythonApiService;
             _logger = logger;
-        }
-
-        /// <summary>
+        }        /// <summary>
         /// Detects track using the Python API on Raspberry Pi
         /// </summary>
         /// <returns>Track detection result</returns>
@@ -30,7 +28,8 @@ namespace OVOVAX.API.Controllers
             {
                 _logger.LogInformation("Track detection requested");
                 
-                var result = await _pythonApiService.DetectTrackAsync();
+                // Use retry method for better reliability with long-running AI operations
+                var result = await _pythonApiService.DetectTrackWithRetryAsync(maxRetries: 2, delaySeconds: 10);
                 
                 if (result.Success)
                 {
@@ -52,9 +51,7 @@ namespace OVOVAX.API.Controllers
                     ErrorMessage = "Internal server error during track detection"
                 });
             }
-        }
-
-        /// <summary>
+        }        /// <summary>
         /// Detects centers of objects using YOLO model on Raspberry Pi
         /// </summary>
         /// <returns>Center detection result with object count and coordinates</returns>
@@ -65,7 +62,8 @@ namespace OVOVAX.API.Controllers
             {
                 _logger.LogInformation("Center detection requested");
                 
-                var result = await _pythonApiService.DetectCenterAsync();
+                // Use retry method for better reliability with long-running AI operations
+                var result = await _pythonApiService.DetectCenterWithRetryAsync(maxRetries: 2, delaySeconds: 10);
                 
                 if (result.Success)
                 {

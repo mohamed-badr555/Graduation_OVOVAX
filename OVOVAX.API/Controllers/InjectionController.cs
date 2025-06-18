@@ -17,7 +17,8 @@ namespace OVOVAX.API.Controllers
         {
             _injectionService = injectionService;
             _mapper = mapper;
-        }        [HttpPost("status")]
+        }    
+        [HttpPost("status")]
         [ProducesResponseType(typeof(InjectionResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<InjectionResponseDto>> GetInjectionStatusCompletedOrNot([FromBody] StopInjectionDto request)
@@ -102,6 +103,7 @@ namespace OVOVAX.API.Controllers
                 return BadRequest(response);
             }
         }     
+       
         [HttpPost("stop")]
         [ProducesResponseType(typeof(InjectionResponseDto), StatusCodes.Status200OK)]
        
@@ -130,7 +132,10 @@ namespace OVOVAX.API.Controllers
                 };
                 return BadRequest(response);
             }
-        }        [HttpGet("history")]
+        }   
+        
+        
+        [HttpGet("history")]
         [ProducesResponseType(typeof(IEnumerable<InjectionHistoryDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -124,6 +124,8 @@ namespace OVOVAX.Services
                 throw; // Let the controller handle the exception
             }
         }  
+
+
               public async Task<IEnumerable<InjectionOperation>> GetInjectionHistoryAsync()
         {
             var injectionOperations = await _unitOfWork.Repository<InjectionOperation>()
