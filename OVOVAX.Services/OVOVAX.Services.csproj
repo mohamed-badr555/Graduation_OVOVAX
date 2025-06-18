@@ -4,10 +4,19 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 	</PropertyGroup>	<ItemGroup>
+		<PackageReference Include="MailKit" Version="4.12.1" />
 		<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
 	</ItemGroup>
+	
+	<ItemGroup>
+		<Compile Remove="AuthService.cs" Condition="Exists('AuthService.cs')" />
+		<Compile Update="AuthService_Clean.cs">
+			<DependentUpon></DependentUpon>
+		</Compile>
+	</ItemGroup>
+	
 	<ItemGroup>
 		<ProjectReference Include="..\OVOVAX.Core\OVOVAX.Core.csproj" />
 		<ProjectReference Include="..\OVOVAX.Repository\OVOVAX.Repository.csproj" />

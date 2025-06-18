@@ -1,0 +1,161 @@
+### OVOVAX API Complete Testing
+### Base URL: http://localhost:5243
+
+### 1. Register New User
+POST http://localhost:5243/api/auth/register
+Content-Type: application/json
+
+{
+  "firstName": "Mohamed",
+  "lastName": "Badr",
+  "email": "test@example.com",
+  "password": "SecurePass123!"
+}
+
+###
+
+### 2. Login User
+POST http://localhost:5243/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "SecurePass123!"
+}
+
+###
+
+### 3. Password Validation - Strong Password
+POST http://localhost:5243/api/auth/validate-password
+Content-Type: application/json
+
+{
+  "password": "SecurePass123!"
+}
+
+###
+
+### 4. Password Validation - Weak Password
+POST http://localhost:5243/api/auth/validate-password
+Content-Type: application/json
+
+{
+  "password": "weak"
+}
+
+###
+
+### 5. Check Email Exists - Existing Email
+GET http://localhost:5243/api/auth/emailexists?email=test@example.com
+
+###
+
+### 6. Check Email Exists - Non-existing Email
+GET http://localhost:5243/api/auth/emailexists?email=nonexistent@example.com
+
+###
+
+### 7. Forgot Password (Email Test)
+POST http://localhost:5243/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "mohamedb.555dr@gmail.com"
+}
+
+###
+
+### 8. Validate Token (Protected Endpoint)
+### Replace YOUR_JWT_TOKEN with actual token from login/register response
+GET http://localhost:5243/api/auth/validate-token
+Authorization: Bearer YOUR_JWT_TOKEN
+
+###
+
+### 9. Test Different Password Requirements
+
+### Too Short Password
+POST http://localhost:5243/api/auth/validate-password
+Content-Type: application/json
+
+{
+  "password": "Pass1!"
+}
+
+###
+
+### No Uppercase
+POST http://localhost:5243/api/auth/validate-password
+Content-Type: application/json
+
+{
+  "password": "password123!"
+}
+
+###
+
+### No Lowercase  
+POST http://localhost:5243/api/auth/validate-password
+Content-Type: application/json
+
+{
+  "password": "PASSWORD123!"
+}
+
+###
+
+### No Number
+POST http://localhost:5243/api/auth/validate-password
+Content-Type: application/json
+
+{
+  "password": "Password!"
+}
+
+###
+
+### No Special Character
+POST http://localhost:5243/api/auth/validate-password
+Content-Type: application/json
+
+{
+  "password": "Password123"
+}
+
+###
+
+### Perfect Password
+POST http://localhost:5243/api/auth/validate-password
+Content-Type: application/json
+
+{
+  "password": "MySecurePass123!"
+}
+
+###
+
+### 10. Register with Weak Password (Should Fail)
+POST http://localhost:5243/api/auth/register
+Content-Type: application/json
+
+{
+  "firstName": "Test",
+  "lastName": "User",
+  "email": "weak@example.com",
+  "password": "weak"
+}
+
+###
+
+### 11. Register with Existing Email (Should Fail)
+POST http://localhost:5243/api/auth/register
+Content-Type: application/json
+
+{
+  "firstName": "Another",
+  "lastName": "User",
+  "email": "test@example.com",
+  "password": "AnotherSecure123!"
+}
+
+###

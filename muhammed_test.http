@@ -1,0 +1,44 @@
+# Testing OVOVAX API with muhammed.adel455@gmail.com
+
+## Step 1: Register Account
+POST http://localhost:5243/api/auth/register
+Content-Type: application/json
+
+{
+  "firstName": "Muhammed",
+  "lastName": "Adel",
+  "email": "muhammed.adel455@gmail.com",
+  "password": "SecurePass123!"
+}
+
+## Step 2: Login
+POST http://localhost:5243/api/auth/login  
+Content-Type: application/json
+
+{
+  "email": "muhammed.adel455@gmail.com",
+  "password": "SecurePass123!"
+}
+
+## Step 3: Password Validation Test
+POST http://localhost:5243/api/auth/validate-password
+Content-Type: application/json
+
+{
+  "password": "SecurePass123!"
+}
+
+## Step 4: Check Email Exists
+GET http://localhost:5243/api/auth/emailexists?email=muhammed.adel455@gmail.com
+
+## Step 5: Forgot Password (Email Test)
+POST http://localhost:5243/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "muhammed.adel455@gmail.com"
+}
+
+## Step 6: Validate Token (Need to get token from Step 1 or 2 first)
+GET http://localhost:5243/api/auth/validate-token
+Authorization: Bearer TOKEN_FROM_LOGIN_OR_REGISTER

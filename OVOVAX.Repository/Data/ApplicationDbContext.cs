@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System;
@@ -5,10 +6,10 @@ using OVOVAX.Core.Entities;
 using OVOVAX.Core.Entities.Scanner;
 using OVOVAX.Core.Entities.Injection;
 using OVOVAX.Core.Entities.ManualControl;
+using OVOVAX.Core.Entities.Identity;
 
 namespace OVOVAX.Repository.Data
-{
-    public class ApplicationDbContext : DbContext
+{    public class ApplicationDbContext : IdentityDbContext<AppUser>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
         public DbSet<ScanResult> ScanResults { get; set; }
