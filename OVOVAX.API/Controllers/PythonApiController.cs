@@ -55,6 +55,42 @@ namespace OVOVAX.API.Controllers
         }
 
         /// <summary>
+        /// Detects centers of objects using YOLO model on Raspberry Pi
+        /// </summary>
+        /// <returns>Center detection result with object count and coordinates</returns>
+        [HttpGet("detect-center")]
+        public async Task<ActionResult<CenterDetectionResult>> DetectCenter()
+        {
+            try
+            {
+                _logger.LogInformation("Center detection requested");
+                
+                var result = await _pythonApiService.DetectCenterAsync();
+                
+                if (result.Success)
+                {
+                    _logger.LogInformation($"Center detection successful: {result.Count} objects detected");
+                    return Ok(result);
+                }
+                else
+                {
+                    _logger.LogWarning($"Center detection failed: {result.ErrorMessage}");
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during center detection");
+                return StatusCode(500, new CenterDetectionResult
+                {
+                    Success = false,
+                    ErrorMessage = "Internal server error during center detection",
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+        }
+
+        /// <summary>
         /// Checks the health status of the Python API
         /// </summary>
         /// <returns>Health status</returns>

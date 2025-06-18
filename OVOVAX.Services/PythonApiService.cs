@@ -89,6 +89,76 @@ namespace OVOVAX.Services
             }
         }
 
+        public async Task<CenterDetectionResult> DetectCenterAsync()
+        {
+            try
+            {
+                _logger.LogInformation($"Sending center detection request to Python API: {_pythonApiBaseUrl}/api/center/detect");
+                
+                var response = await _httpClient.GetAsync($"{_pythonApiBaseUrl}/api/center/detect");
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Python API returned {response.StatusCode}: {errorContent}");
+                    
+                    return new CenterDetectionResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Python API returned {response.StatusCode}: {errorContent}",
+                        Timestamp = DateTime.UtcNow
+                    };
+                }
+                
+                var responseJson = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation($"Python API center detection response: {responseJson}");
+                
+                var result = JsonSerializer.Deserialize<CenterDetectionApiResponse>(responseJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                return new CenterDetectionResult
+                {
+                    Success = result?.Success ?? false,
+                    Count = result?.Count ?? 0,
+                    Centers = result?.Centers ?? new List<DetectedCenter>(),
+                    ErrorMessage = result?.Error ?? string.Empty,
+                    Timestamp = result?.Timestamp > 0 ? DateTimeOffset.FromUnixTimeSeconds((long)result.Timestamp).DateTime : DateTime.UtcNow
+                };
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError($"Network error connecting to Python API for center detection: {ex.Message}");
+                return new CenterDetectionResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Cannot connect to Raspberry Pi at {_pythonApiBaseUrl}. Check network connection.",
+                    Timestamp = DateTime.UtcNow
+                };
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError($"Timeout connecting to Python API for center detection: {ex.Message}");
+                return new CenterDetectionResult
+                {
+                    Success = false,
+                    ErrorMessage = "Timeout connecting to Raspberry Pi. Check if the device is running.",
+                    Timestamp = DateTime.UtcNow
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error communicating with Python API for center detection: {ex.Message}");
+                return new CenterDetectionResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error communicating with Python API: {ex.Message}",
+                    Timestamp = DateTime.UtcNow
+                };
+            }
+        }
+
         public async Task<bool> CheckHealthAsync()
         {
             try

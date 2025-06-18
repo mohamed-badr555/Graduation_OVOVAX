@@ -18,7 +18,8 @@ namespace OVOVAX.Services
         {
             _unitOfWork = unitOfWork;
             _esp32Service = esp32Service;
-        }        public async Task<MovementCommand> MoveAxisAsync(string axis, int direction, int speed = 50, int steps = 1000)
+        }  
+        public async Task<MovementCommand> MoveAxisAsync(string axis, int direction, int speed = 50, int steps = 1000)
         {
             try
             {
@@ -75,7 +76,8 @@ namespace OVOVAX.Services
                 await _unitOfWork.Repository<MovementCommand>().Add(failedCommand);
                 await _unitOfWork.Complete();                throw;
             }
-        }public async Task<MovementCommand> HomeAxesAsync(int speed = 50)
+        }
+        public async Task<MovementCommand> HomeAxesAsync(int speed = 50)
         {
             try
             {
@@ -98,7 +100,7 @@ namespace OVOVAX.Services
                     Direction = MovementDirection.Positive,
                     Speed = speed,
                     Steps = 0, // Homing doesn't use specific steps
-                    Status = success ? MovementStatus.InProgress : MovementStatus.Failed
+                    Status = success ? MovementStatus.Completed : MovementStatus.Failed
                 };
 
                 await _unitOfWork.Repository<MovementCommand>().Add(movementCommand);
@@ -125,12 +127,6 @@ namespace OVOVAX.Services
             }
         }
 
-        public async Task<IEnumerable<MovementCommand>> GetMovementHistoryAsync()
-        {
-            var spec = new RecentMovementsSpecification(10);
-            var movements = await _unitOfWork.Repository<MovementCommand>().ListAsync(spec);
-            return movements;
-        }      
         public async Task<object> GetMovementStatusAsync(int? homingOperationId = null)
         {
             try
@@ -190,5 +186,16 @@ namespace OVOVAX.Services
                 };
             }
         }
+
+        public async Task<IEnumerable<MovementCommand>> GetMovementHistoryAsync()
+        {
+            var spec = new RecentMovementsSpecification(10);
+            var movements = await _unitOfWork.Repository<MovementCommand>().ListAsync(spec);
+            return movements;
+        }      
+
+
+
+
     }
 }
