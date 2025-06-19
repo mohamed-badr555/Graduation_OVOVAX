@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace OVOVAX.Core.Models
 {
     public class TrackDetectionResult
@@ -12,14 +14,19 @@ namespace OVOVAX.Core.Models
     {
         public string Text { get; set; } = string.Empty;
         public double Confidence { get; set; }
-    }
-
-    public class PythonApiResponse
+    }    public class PythonApiResponse
     {
         public bool Success { get; set; }
+        
+        [JsonPropertyName("track_id")]
         public string TrackId { get; set; } = string.Empty;
-        public List<DetectedText> DetectedTexts { get; set; } = new();
+        
+        [JsonPropertyName("detected_texts")]
+        public List<string> DetectedTexts { get; set; } = new();
+        
         public string Error { get; set; } = string.Empty;
+        
+        public double Timestamp { get; set; }
     }
 
     // New models for center detection

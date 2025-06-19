@@ -47,17 +47,22 @@ namespace OVOVAX.Services
                 
                 var responseJson = await response.Content.ReadAsStringAsync();
                 _logger.LogInformation($"Python API response: {responseJson}");
-                
-                var result = JsonSerializer.Deserialize<PythonApiResponse>(responseJson, new JsonSerializerOptions
+                  var result = JsonSerializer.Deserialize<PythonApiResponse>(responseJson, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
+
+                _logger.LogInformation($"Deserialized result - Success: {result?.Success}, TrackId: '{result?.TrackId}', DetectedTexts count: {result?.DetectedTexts?.Count ?? 0}");
 
                 return new TrackDetectionResult
                 {
                     Success = result?.Success ?? false,
                     TrackId = result?.TrackId ?? string.Empty,
-                    DetectedTexts = result?.DetectedTexts ?? new List<DetectedText>(),
+                    DetectedTexts = result?.DetectedTexts?.Select(text => new DetectedText 
+                    { 
+                        Text = text, 
+                        Confidence = 1.0 // OCR doesn't provide confidence, set to 1.0
+                    }).ToList() ?? new List<DetectedText>(),
                     ErrorMessage = result?.Error ?? string.Empty
                 };
             }
