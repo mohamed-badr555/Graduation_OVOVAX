@@ -11,10 +11,13 @@ namespace OVOVAX.Core.Services.Contract
         Task<AuthResponse> RegisterAsync(RegisterRequest request);
         Task<AuthResponse> LoginAsync(LoginRequest request);
         Task<ForgotPasswordResponse> ForgotPasswordAsync(string email);     
-           Task<AuthResponse> ValidateTokenAsync(string token);
+        Task<AuthResponse> ValidateTokenAsync(string token);
         Task<bool> CheckEmailExistsAsync(string email);
         Task<string> CreateTokenAsync(AppUser user);
         PasswordValidationResult ValidatePassword(string password);
+        
+        // Logout method
+        Task<LogoutResponse> LogoutAsync(string token);
     }
 
     // DTOs defined in the same file
@@ -56,5 +59,12 @@ namespace OVOVAX.Core.Services.Contract
     {
         [Required]
         public string Password { get; set; } = string.Empty;
+    }
+
+    public class LogoutResponse
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public string? Error { get; set; }
     }
 }

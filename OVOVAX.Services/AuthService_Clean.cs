@@ -21,13 +21,20 @@ namespace OVOVAX.Services
             _configuration = configuration;
             _userManager = userManager;
             _emailService = emailService;
-        }
-
-
-        public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
+        }        public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
         {
             try
             {
+                // Validate password confirmation
+                if (request.Password != request.ConfirmPassword)
+                {
+                    return new AuthResponse
+                    {
+                        Success = false,
+                        Error = "Password and confirmation password do not match"
+                    };
+                }
+
                 // Check if email already exists
                 if (await CheckEmailExistsAsync(request.Email))
                 {
@@ -321,14 +328,12 @@ namespace OVOVAX.Services
 
             var validAudience = _configuration["JWT:ValidAudience"] ?? throw new InvalidOperationException("JWT ValidAudience not configured");
             var validIssuer = _configuration["JWT:ValidIssuer"] ?? throw new InvalidOperationException("JWT ValidIssuer not configured");
-            var durationInDays = _configuration["JWT:DurationInDays"] ?? throw new InvalidOperationException("JWT DurationInDays not configured");
-
-            var token = new JwtSecurityToken(
+            var durationInDays = _configuration["JWT:DurationInDays"] ?? throw new InvalidOperationException("JWT DurationInDays not configured");            var token = new JwtSecurityToken(
                 audience: validAudience,
                 issuer: validIssuer,
                 expires: DateTime.UtcNow.AddDays(double.Parse(durationInDays)),
                 claims: authClaims,
-                signingCredentials: new SigningCredentials(authKey, SecurityAlgorithms.HmacSha256Signature)
+                signingCredentials: new SigningCredentials(authKey, SecurityAlgorithms.HmacSha256)
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
@@ -337,6 +342,56 @@ namespace OVOVAX.Services
         public PasswordValidationResult ValidatePassword(string password)
         {
             return PasswordValidator.ValidatePassword(password);
+        }
+
+        public async Task<LogoutResponse> LogoutAsync(string token)
+        {
+            try
+            {
+                // Validate the token first
+                var tokenValidation = await ValidateTokenAsync(token);
+                
+                if (!tokenValidation.Success)
+                {
+                    return new LogoutResponse
+                    {
+                        Success = false,
+                        Error = "Invalid or expired token"
+                    };
+                }
+
+                // Since JWT tokens are stateless, we'll just return success
+                // In a production environment, you might want to:
+                // 1. Add the token to a blacklist/revocation list
+                // 2. Update user's last logout time
+                // 3. Clear any server-side sessions
+                
+                // Optional: Update user's last logout time
+                if (tokenValidation.User != null)
+                {
+                    var user = await _userManager.FindByIdAsync(tokenValidation.User.Id);
+                    if (user != null)
+                    {
+                        // You can add a LastLogout property to AppUser if needed
+                        // user.LastLogout = DateTime.UtcNow;
+                        // await _userManager.UpdateAsync(user);
+                    }
+                }
+
+                return new LogoutResponse
+                {
+                    Success = true,
+                    Message = "Logout successful"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new LogoutResponse
+                {
+                    Success = false,
+                    Error = $"Logout failed: {ex.Message}"
+                };
+            }
         }
     }
 }

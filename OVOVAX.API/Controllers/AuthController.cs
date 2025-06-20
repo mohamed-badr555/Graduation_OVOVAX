@@ -19,11 +19,25 @@ namespace OVOVAX.API.Controllers
         {
             _authService = authService;
             _userManager = userManager;
-        }
-
+        }     
         [HttpPost("register")]
         public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
         {
+            // Check model validation first
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                
+                return BadRequest(new AuthResponse
+                {
+                    Success = false,
+                    Error = string.Join(", ", errors)
+                });
+            }
+
             var result = await _authService.RegisterAsync(request);
             
             if (!result.Success)
@@ -79,7 +93,7 @@ namespace OVOVAX.API.Controllers
             return Ok(result);
         }
 
-        [HttpGet]
+        [HttpGet("me")]
         [Authorize]
         public async Task<ActionResult<UserDto>> GetCurrentUser()
         {
@@ -118,6 +132,31 @@ namespace OVOVAX.API.Controllers
         public ActionResult<PasswordValidationResult> ValidatePassword([FromBody] ValidatePasswordRequest request)
         {
             var result = _authService.ValidatePassword(request.Password);
+            return Ok(result);
+        }
+
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<ActionResult<LogoutResponse>> Logout()
+        {
+            var token = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                return Unauthorized(new LogoutResponse 
+                { 
+                    Success = false, 
+                    Error = "Token not provided" 
+                });
+            }
+
+            var result = await _authService.LogoutAsync(token);
+            
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
             return Ok(result);
         }
     }
