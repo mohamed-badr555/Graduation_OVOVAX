@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using AutoMapper;
 using OVOVAX.API.DTOs.ManualControl;
 using OVOVAX.Core.Interfaces;
+using System.Security.Claims;
 
 namespace OVOVAX.API.Controllers
 {
@@ -17,15 +19,23 @@ namespace OVOVAX.API.Controllers
             
             _movementService = movementService;
             _mapper = mapper;
-        }      
-        [HttpPost("move")]
+        }        [HttpPost("move")]
+        [Authorize]
         //[ProducesResponseType(typeof(Move))]
         public async Task<ActionResult<MovementResponseDto>> MoveAxis([FromBody] MovementRequestDto request)
-        {            try
+        {
+            try
             {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized("User ID not found in token");
+                }
+
                 var movementCommand = await _movementService.MoveAxisAsync(
-                    request.Axis.ToString(), 
-                    (int)request.Direction, 
+                    userId,
+                    request.Axis,
+                    request.Direction,
                     request.Speed,
                     request.Steps);
                 
@@ -46,12 +56,19 @@ namespace OVOVAX.API.Controllers
                 };
                 return BadRequest(response);
             }
-        }  
-        [HttpPost("home")]
-        public async Task<ActionResult<MovementResponseDto>> HomeAxes([FromBody] HomeRequestDto request)        {
+        }        [HttpPost("home")]
+        [Authorize]
+        public async Task<ActionResult<MovementResponseDto>> HomeAxes([FromBody] HomeRequestDto request)
+        {
             try
             {
-                var movementCommand = await _movementService.HomeAxesAsync(request.Speed);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized("User ID not found in token");
+                }
+
+                var movementCommand = await _movementService.HomeAxesAsync(userId, request.Speed);
                 
                 var response = new MovementResponseDto
                 {
@@ -71,21 +88,31 @@ namespace OVOVAX.API.Controllers
                 return BadRequest(response);
             }
         }
-
-
-
-
         [HttpGet("history")]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<MovementHistoryDto>>> GetMovementHistory()
         {
-            var movements = await _movementService.GetMovementHistoryAsync();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token");
+            }
+
+            var movements = await _movementService.GetMovementHistoryAsync(userId);
             var historyDtos = _mapper.Map<IEnumerable<MovementHistoryDto>>(movements);
             return Ok(historyDtos);
         }        [HttpPost("status")]
+        [Authorize]
         public async Task<ActionResult<object>> GetMovementStatus([FromBody] MovementStatusRequestDto? request = null)
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token");
+            }
+
             var homingOperationId = request?.HomingOperationId;
-            var status = await _movementService.GetMovementStatusAsync(homingOperationId);
+            var status = await _movementService.GetMovementStatusAsync(userId, homingOperationId);
             return Ok(status);
         }
     }

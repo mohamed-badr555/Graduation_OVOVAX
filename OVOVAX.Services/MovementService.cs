@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Text.Json;
 using OVOVAX.Core.Entities.ManualControl;
 using OVOVAX.Core.Interfaces;
+using OVOVAX.Core.Specifications;
 using OVOVAX.Core.Specifications.ManualControl;
 
 namespace OVOVAX.Services
@@ -19,7 +20,7 @@ namespace OVOVAX.Services
             _unitOfWork = unitOfWork;
             _esp32Service = esp32Service;
         }  
-        public async Task<MovementCommand> MoveAxisAsync(string axis, int direction, int speed = 50, int steps = 1000)
+        public async Task<MovementCommand> MoveAxisAsync(string userId, string axis, int direction, int speed = 50, int steps = 1000)
         {
             try
             {
@@ -42,9 +43,7 @@ namespace OVOVAX.Services
                 }
 
                 // Parse direction to enum
-                var directionEnum = direction > 0 ? MovementDirection.Positive : MovementDirection.Negative;
-
-                var movementCommand = new MovementCommand
+                var directionEnum = direction > 0 ? MovementDirection.Positive : MovementDirection.Negative;                var movementCommand = new MovementCommand
                 {
                     Timestamp = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
                         TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time")),
@@ -53,15 +52,15 @@ namespace OVOVAX.Services
                     Direction = directionEnum,
                     Speed = speed,
                     Steps = steps,
-                    Status = MovementStatus.Completed
+                    Status = MovementStatus.Completed,
+                    UserId = userId
                 };
 
                 await _unitOfWork.Repository<MovementCommand>().Add(movementCommand);
                 await _unitOfWork.Complete();
 
                 return movementCommand;
-            }
-            catch (Exception)
+            }            catch (Exception)
             {                var failedCommand = new MovementCommand
                 {
                     Timestamp = DateTime.Now,
@@ -70,14 +69,15 @@ namespace OVOVAX.Services
                     Direction = direction > 0 ? MovementDirection.Positive : MovementDirection.Negative,
                     Speed = speed,
                     Steps = steps,
-                    Status = MovementStatus.Failed
+                    Status = MovementStatus.Failed,
+                    UserId = userId
                 };
 
                 await _unitOfWork.Repository<MovementCommand>().Add(failedCommand);
                 await _unitOfWork.Complete();                throw;
             }
         }
-        public async Task<MovementCommand> HomeAxesAsync(int speed = 50)
+        public async Task<MovementCommand> HomeAxesAsync(string userId, int speed = 50)
         {
             try
             {
@@ -100,15 +100,15 @@ namespace OVOVAX.Services
                     Direction = MovementDirection.Positive,
                     Speed = speed,
                     Steps = 0, // Homing doesn't use specific steps
-                    Status = success ? MovementStatus.Completed : MovementStatus.Failed
+                    Status = success ? MovementStatus.Completed : MovementStatus.Failed,
+                    UserId = userId
                 };
 
                 await _unitOfWork.Repository<MovementCommand>().Add(movementCommand);
                 await _unitOfWork.Complete();
 
                 return movementCommand;
-            }
-            catch (Exception)
+            }            catch (Exception)
             {                var failedCommand = new MovementCommand
                 {
                     Timestamp = DateTime.Now,
@@ -117,7 +117,8 @@ namespace OVOVAX.Services
                     Direction = MovementDirection.Positive,
                     Speed = speed,
                     Steps = 0, // Homing doesn't use specific steps
-                    Status = MovementStatus.Failed
+                    Status = MovementStatus.Failed,
+                    UserId = userId
                 };
 
                 await _unitOfWork.Repository<MovementCommand>().Add(failedCommand);
@@ -127,7 +128,7 @@ namespace OVOVAX.Services
             }
         }
 
-        public async Task<object> GetMovementStatusAsync(int? homingOperationId = null)
+        public async Task<object> GetMovementStatusAsync(string userId, int? homingOperationId = null)
         {
             try
             {
@@ -137,12 +138,12 @@ namespace OVOVAX.Services
                 
                 bool isHomed = response.GetProperty("isHomed").GetBoolean();
                 bool limitSwitch1 = response.GetProperty("limitSwitch1").GetBoolean();
-                bool limitSwitch2 = response.GetProperty("limitSwitch2").GetBoolean();                  // Check for specific homing operation and update its status if homing is complete
+                bool limitSwitch2 = response.GetProperty("limitSwitch2").GetBoolean();                // Check for specific homing operation and update its status if homing is complete
                 if (isHomed && homingOperationId.HasValue)
                 {
-                    // Find the specific homing operation and mark it as completed
+                    // Find the specific homing operation for this user and mark it as completed
                     var homingOperation = await _unitOfWork.Repository<MovementCommand>()
-                        .GetByIdAsync(homingOperationId.Value);
+                        .GetEntityWithSpec(new MovementCommandsByUserSpec(userId, homingOperationId.Value));
                     
                     if (homingOperation != null && 
                         homingOperation.Action == MovementAction.Home && 
@@ -185,14 +186,12 @@ namespace OVOVAX.Services
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
                 };
             }
-        }
-
-        public async Task<IEnumerable<MovementCommand>> GetMovementHistoryAsync()
+        }        public async Task<IEnumerable<MovementCommand>> GetMovementHistoryAsync(string userId)
         {
-            var spec = new RecentMovementsSpecification(10);
+            var spec = new MovementCommandsByUserSpec(userId);
             var movements = await _unitOfWork.Repository<MovementCommand>().ListAsync(spec);
             return movements;
-        }      
+        }
 
 
 

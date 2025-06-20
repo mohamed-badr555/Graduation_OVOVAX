@@ -74,6 +74,17 @@ namespace OVOVAX.Services
                 // Create token
                 var token = await CreateTokenAsync(user);
 
+                // Send welcome email (don't block registration if email fails)
+                try
+                {
+                    await _emailService.SendWelcomeEmailAsync(user.Email!, user.FirstName);
+                }
+                catch (Exception emailEx)
+                {
+                    // Log email error but don't fail registration
+                    Console.WriteLine($"Failed to send welcome email: {emailEx.Message}");
+                }
+
                 return new AuthResponse
                 {
                     Success = true,

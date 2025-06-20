@@ -6,8 +6,8 @@ namespace OVOVAX.Core.Interfaces
 {
     public interface IScannerService
     {
-        Task<ScanResult> StartScanAsync();
-        Task<ScanResult> StopScanAsync(int scanId);
-        Task<IEnumerable<ScanResult>> GetScanHistoryAsync();
+        Task<ScanResult> StartScanAsync(string userId);
+        Task<ScanResult> StopScanAsync(string userId, int scanId);
+        Task<IEnumerable<ScanResult>> GetScanHistoryAsync(string userId);
     }
 }

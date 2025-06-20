@@ -1,4 +1,5 @@
 using System;
+using OVOVAX.Core.Entities.Identity;
 
 namespace OVOVAX.Core.Entities.Injection
 {
@@ -12,6 +13,11 @@ namespace OVOVAX.Core.Entities.Injection
         public double VolumeOfLiquid { get; set; } // in ml
         public int NumberOfElements { get; set; }
         public InjectionStatus Status { get; set; }
+        
+        // User relationship
+        public string UserId { get; set; } = string.Empty;
+        public AppUser User { get; set; } = null!;
+        
         //public string? Notes { get; set; } // Optional notes about the operation
     }
 

@@ -1,4 +1,5 @@
 using System;
+using OVOVAX.Core.Entities.Identity;
 
 namespace OVOVAX.Core.Entities.ManualControl
 {
@@ -12,6 +13,10 @@ namespace OVOVAX.Core.Entities.ManualControl
         public int Steps { get; set; } // number of steps to move
         public MovementStatus Status { get; set; }
         public string? ErrorMessage { get; set; }
+        
+        // User relationship
+        public string UserId { get; set; } = string.Empty;
+        public AppUser User { get; set; } = null!;
     }
 
     public enum MovementAction

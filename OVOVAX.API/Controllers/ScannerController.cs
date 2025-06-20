@@ -1,13 +1,16 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using AutoMapper;
 using OVOVAX.API.DTOs.Scanner;
 using OVOVAX.Core.Interfaces;
 using OVOVAX.Core.Models;
+using System.Security.Claims;
 
 namespace OVOVAX.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]   
+    [Route("api/[controller]")]
+    [Authorize] // Require authentication for all endpoints
     public class ScannerController : ControllerBase
     {
         private readonly IScannerService _scannerService;
@@ -19,13 +22,18 @@ namespace OVOVAX.API.Controllers
             _scannerService = scannerService;
             _pythonApiService = pythonApiService;
             _mapper = mapper;
-        }    
-        [HttpGet("start")]
-        public async Task<ActionResult<ScanResponseDto>> StartScan()
+        }
+
+        private string GetCurrentUserId()
         {
+            return User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        }
+        [HttpGet("start")]
+        public async Task<ActionResult<ScanResponseDto>> StartScan()        {
             try
             {
-                var scanResult = await _scannerService.StartScanAsync();    
+                var userId = GetCurrentUserId();
+                var scanResult = await _scannerService.StartScanAsync(userId);    
                 
                 var response = new ScanResponseDto
                 {
@@ -48,11 +56,11 @@ namespace OVOVAX.API.Controllers
                 return BadRequest(response);
             }
         }        [HttpPost("stop")]
-        public async Task<ActionResult<ScanResponseDto>> StopScan([FromBody] StopScanDto request)
-        {
+        public async Task<ActionResult<ScanResponseDto>> StopScan([FromBody] StopScanDto request)        {
             try
             {
-                var scanResult = await _scannerService.StopScanAsync(request.ScanId);
+                var userId = GetCurrentUserId();
+                var scanResult = await _scannerService.StopScanAsync(userId, request.ScanId);
                 var response = new ScanResponseDto
                 {
                     Success = true,
@@ -93,11 +101,11 @@ namespace OVOVAX.API.Controllers
             }
         }
         [HttpGet("history")]
-        public async Task<ActionResult<IEnumerable<ScanResultDto>>> GetScanHistory()
-        {
+        public async Task<ActionResult<IEnumerable<ScanResultDto>>> GetScanHistory()        {
             try
             {
-                var scanResults = await _scannerService.GetScanHistoryAsync();
+                var userId = GetCurrentUserId();
+                var scanResults = await _scannerService.GetScanHistoryAsync(userId);
                 var resultDtos = _mapper.Map<IEnumerable<ScanResultDto>>(scanResults);
                 return Ok(resultDtos);
             }

@@ -7,7 +7,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OVOVAX.Core.Entities.Scanner;
 using OVOVAX.Core.Interfaces;
-using OVOVAX.Core.Specifications.Scanner;
+using OVOVAX.Core.Specifications;
 
 namespace OVOVAX.Services
 {
@@ -30,7 +30,7 @@ namespace OVOVAX.Services
             _activeScanReadings = new ConcurrentDictionary<int, List<double>>();
             _scanCancellationTokens = new ConcurrentDictionary<int, CancellationTokenSource>();
             _scanTasks = new ConcurrentDictionary<int, Task>();
-        }        public async Task<ScanResult> StartScanAsync()
+        }        public async Task<ScanResult> StartScanAsync(string userId)
         {
             try
             {
@@ -42,7 +42,8 @@ namespace OVOVAX.Services
                     ScanTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
                         TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time")),
                     Status = ScanStatus.InProgress,
-                    SensorReadings = new List<double>()
+                    SensorReadings = new List<double>(),
+                    UserId = userId
                 };
 
                 await _unitOfWork.Repository<ScanResult>().Add(scanResult);
@@ -71,17 +72,18 @@ namespace OVOVAX.Services
                 _logger.LogError(ex, "Failed to start scan");
                 throw;
             }
-        }        public async Task<ScanResult> StopScanAsync(int scanId)
+        }        public async Task<ScanResult> StopScanAsync(string userId, int scanId)
         {
             try
             {
                 _logger.LogInformation($"Stopping scan {scanId}");
 
-                // Find the scan record
-                var scanResult = await _unitOfWork.Repository<ScanResult>().GetByIdAsync(scanId);
+                // Find the scan record for this user
+                var spec = new ScanResultsByUserSpec(userId, scanId);
+                var scanResult = await _unitOfWork.Repository<ScanResult>().GetEntityWithSpec(spec);
                 if (scanResult == null)
                 {
-                    throw new ArgumentException($"Scan with ID {scanId} not found");
+                    throw new ArgumentException($"Scan with ID {scanId} not found or doesn't belong to user");
                 }
 
                 if (scanResult.Status != ScanStatus.InProgress)
@@ -117,10 +119,11 @@ namespace OVOVAX.Services
                 await _unitOfWork.Complete();
 
                 return scanResult;
-            }
-            catch (Exception ex)
+            }            catch (Exception ex)
             {
-                var scanResult = await _unitOfWork.Repository<ScanResult>().GetByIdAsync(scanId);
+                // Try to find and update the scan record for this user
+                var spec = new ScanResultsByUserSpec(userId, scanId);
+                var scanResult = await _unitOfWork.Repository<ScanResult>().GetEntityWithSpec(spec);
                 if (scanResult != null)
                 {
                     scanResult.Status = ScanStatus.Failed;
@@ -131,11 +134,9 @@ namespace OVOVAX.Services
                 _logger.LogError(ex, $"Failed to stop scan {scanId}");
                 throw;
             }
-        }
-
-        public async Task<IEnumerable<ScanResult>> GetScanHistoryAsync()
+        }        public async Task<IEnumerable<ScanResult>> GetScanHistoryAsync(string userId)
         {
-            var spec = new RecentScansSpecification(10);
+            var spec = new ScanResultsByUserSpec(userId);
             var scanResults = await _unitOfWork.Repository<ScanResult>().ListAsync(spec);
             return scanResults;
         }

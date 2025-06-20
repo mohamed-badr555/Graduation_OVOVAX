@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Text.Json;
 using OVOVAX.Core.Entities.Injection;
 using OVOVAX.Core.Interfaces;
+using OVOVAX.Core.Specifications;
 using OVOVAX.Core.Specifications.Injection;
 
 namespace OVOVAX.Services
@@ -19,7 +20,7 @@ namespace OVOVAX.Services
             _unitOfWork = unitOfWork;
             _esp32Service = esp32Service;
         }   
-        public async Task<InjectionOperation> StartInjectionAsync(double rangeOfInfraredfrom, double rangeOfInfraredto, double stepOfInjection, double volumeOfLiquid, int numberOfElements)
+        public async Task<InjectionOperation> StartInjectionAsync(string userId, double rangeOfInfraredfrom, double rangeOfInfraredto, double stepOfInjection, double volumeOfLiquid, int numberOfElements)
         {
             try
             {
@@ -31,11 +32,11 @@ namespace OVOVAX.Services
                     stepOfInjection = stepOfInjection,
                     volumeOfLiquid = volumeOfLiquid,
                     numberOfElements = numberOfElements
-                };
-
-                var esp32Response = await _esp32Service.SendCommandAsync("injection/start", esp32Command);
+                };                var esp32Response = await _esp32Service.SendCommandAsync("injection/start", esp32Command);
                 var response = JsonSerializer.Deserialize<JsonElement>(esp32Response);
-                bool success = response.GetProperty("success").GetBoolean();                // Create injection operation record in database
+                bool success = response.GetProperty("success").GetBoolean();
+
+                // Create injection operation record in database
                 var injectionOperation = new InjectionOperation
                 {
                     StartTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
@@ -46,15 +47,15 @@ namespace OVOVAX.Services
                     VolumeOfLiquid = volumeOfLiquid,
                     NumberOfElements = numberOfElements,       
                     Status = success ? InjectionStatus.Active : InjectionStatus.Failed,
-                    EndTime = success ? null : DateTime.Now
+                    EndTime = success ? null : DateTime.Now,
+                    UserId = userId
                 };
 
                 await _unitOfWork.Repository<InjectionOperation>().Add(injectionOperation);
                 await _unitOfWork.Complete();
 
                 return injectionOperation;
-            }
-            catch (Exception)
+            }catch (Exception)
             {                var failedOperation = new InjectionOperation
                 {
                     StartTime = DateTime.Now,
@@ -63,7 +64,8 @@ namespace OVOVAX.Services
                     StepOfInjection = stepOfInjection,
                     VolumeOfLiquid = volumeOfLiquid,
                     NumberOfElements = numberOfElements,
-                    Status = InjectionStatus.Failed
+                    Status = InjectionStatus.Failed,
+                    UserId = userId
                 };
 
                 await _unitOfWork.Repository<InjectionOperation>().Add(failedOperation);
@@ -72,18 +74,16 @@ namespace OVOVAX.Services
                 throw;
             }
         }      
-        
-        public async Task<bool> StopInjectionAsync(int operationId)
+          public async Task<bool> StopInjectionAsync(string userId, int operationId)
         {
             try
-            {
-                // Find and validate the specific operation first
+            {                // Find and validate the specific operation first (with user validation)
                 var operation = await _unitOfWork.Repository<InjectionOperation>()
-                    .GetByIdAsync(operationId);
+                    .GetEntityWithSpec(new InjectionOperationsByUserSpec(userId, operationId));
 
                 if (operation == null)
                 {
-                    return false; // Operation not found
+                    return false; // Operation not found or doesn't belong to user
                 }
 
                 if (operation.Status != InjectionStatus.Active)
@@ -123,22 +123,18 @@ namespace OVOVAX.Services
             {
                 throw; // Let the controller handle the exception
             }
-        }  
-
-
-              public async Task<IEnumerable<InjectionOperation>> GetInjectionHistoryAsync()
+        }        public async Task<IEnumerable<InjectionOperation>> GetInjectionHistoryAsync(string userId)
         {
             var injectionOperations = await _unitOfWork.Repository<InjectionOperation>()
-                .ListAsync(new RecentInjectionOperationsSpecification(15));
+                .ListAsync(new InjectionOperationsByUserSpec(userId));
 
             return injectionOperations;
-        }
-        public async Task<InjectionOperation?> FindIsCompleteOrNot(int operationId)
+        }        public async Task<InjectionOperation?> FindIsCompleteOrNot(string userId, int operationId)
         {
             try
             {
                 var operation = await _unitOfWork.Repository<InjectionOperation>()
-                    .GetByIdAsync(operationId);
+                    .GetEntityWithSpec(new InjectionOperationsByUserSpec(userId, operationId));
 
                 if (operation == null)
                     return null;

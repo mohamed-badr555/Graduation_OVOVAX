@@ -14,8 +14,7 @@ namespace OVOVAX.Repository.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
         public DbSet<ScanResult> ScanResults { get; set; }
         public DbSet<InjectionOperation> InjectionOperations { get; set; }
-        public DbSet<MovementCommand> MovementCommands { get; set; }    
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        public DbSet<MovementCommand> MovementCommands { get; set; }        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
@@ -35,6 +34,7 @@ namespace OVOVAX.Repository.Data
                     )
                 );
 
+            // Configure precision for InjectionOperation decimal properties
             modelBuilder.Entity<InjectionOperation>()
                 .Property(io => io.RangeOfInfraredFrom)
                 .HasPrecision(18, 3);
@@ -49,6 +49,26 @@ namespace OVOVAX.Repository.Data
 
             modelBuilder.Entity<InjectionOperation>()
                 .Property(io => io.VolumeOfLiquid)
-                .HasPrecision(18, 3);        }
+                .HasPrecision(18, 3);
+
+            // Configure User relationships
+            modelBuilder.Entity<InjectionOperation>()
+                .HasOne(i => i.User)
+                .WithMany()
+                .HasForeignKey(i => i.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ScanResult>()
+                .HasOne(s => s.User)
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MovementCommand>()
+                .HasOne(m => m.User)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
     }
 }

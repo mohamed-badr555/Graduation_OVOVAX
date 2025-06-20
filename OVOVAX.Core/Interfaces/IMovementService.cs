@@ -6,9 +6,9 @@ namespace OVOVAX.Core.Interfaces
 {
     public interface IMovementService
     {
-        Task<MovementCommand> MoveAxisAsync(string axis, int direction, int speed = 50, int steps = 1000);
-        Task<MovementCommand> HomeAxesAsync(int speed = 50);
-        Task<IEnumerable<MovementCommand>> GetMovementHistoryAsync();
-        Task<object> GetMovementStatusAsync(int? homingOperationId = null);
+        Task<MovementCommand> MoveAxisAsync(string userId, string axis, int direction, int speed = 50, int steps = 1000);
+        Task<MovementCommand> HomeAxesAsync(string userId, int speed = 50);
+        Task<IEnumerable<MovementCommand>> GetMovementHistoryAsync(string userId);
+        Task<object> GetMovementStatusAsync(string userId, int? homingOperationId = null);
     }
 }

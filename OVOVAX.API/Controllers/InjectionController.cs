@@ -1,13 +1,16 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using AutoMapper;
 using OVOVAX.API.DTOs.Injection;
 using OVOVAX.Core.Interfaces;
 using OVOVAX.Core.Entities.Injection;
+using System.Security.Claims;
 
 namespace OVOVAX.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] 
+    [Route("api/[controller]")]
+    [Authorize] // Require authentication for all endpoints
     public class InjectionController : ControllerBase
     {
         private readonly IInjectionService _injectionService;
@@ -17,15 +20,20 @@ namespace OVOVAX.API.Controllers
         {
             _injectionService = injectionService;
             _mapper = mapper;
-        }    
+        }
+
+        private string GetCurrentUserId()
+        {
+            return User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        }
         [HttpPost("status")]
         [ProducesResponseType(typeof(InjectionResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<InjectionResponseDto>> GetInjectionStatusCompletedOrNot([FromBody] StopInjectionDto request)
-        {
+        public async Task<ActionResult<InjectionResponseDto>> GetInjectionStatusCompletedOrNot([FromBody] StopInjectionDto request)        {
             try
             {
-                var operation = await _injectionService.FindIsCompleteOrNot(request.OperationId);
+                var userId = GetCurrentUserId();
+                var operation = await _injectionService.FindIsCompleteOrNot(userId, request.OperationId);
                 if (operation == null)
                 {
                     return NotFound(new InjectionResponseDto
@@ -75,11 +83,12 @@ namespace OVOVAX.API.Controllers
         [ProducesResponseType(typeof(InjectionResponseDto), StatusCodes.Status400BadRequest)]
          [ProducesResponseType(StatusCodes.Status404NotFound)]
 
-        public async Task<ActionResult<InjectionResponseDto>> StartInjection([FromBody] StartInjectionDto request)
-        {
+        public async Task<ActionResult<InjectionResponseDto>> StartInjection([FromBody] StartInjectionDto request)        {
             try
             {
+                var userId = GetCurrentUserId();
                 var injectionOperation = await _injectionService.StartInjectionAsync(
+                    userId,
                     request.RangeOfInfraredFrom,
                     request.RangeOfInfraredTo,
                     request.StepOfInjection, 
@@ -109,11 +118,11 @@ namespace OVOVAX.API.Controllers
        
         [ProducesResponseType(typeof(InjectionResponseDto), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<InjectionResponseDto>> StopInjection([FromBody] StopInjectionDto request)
-        {
+        public async Task<ActionResult<InjectionResponseDto>> StopInjection([FromBody] StopInjectionDto request)        {
             try
             {
-                var success = await _injectionService.StopInjectionAsync(request.OperationId);
+                var userId = GetCurrentUserId();
+                var success = await _injectionService.StopInjectionAsync(userId, request.OperationId);
                 var response = new InjectionResponseDto
                 {
                     Success = success,
@@ -139,11 +148,11 @@ namespace OVOVAX.API.Controllers
         [ProducesResponseType(typeof(IEnumerable<InjectionHistoryDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<IEnumerable<InjectionHistoryDto>>> GetInjectionHistory()
-        {
+        public async Task<ActionResult<IEnumerable<InjectionHistoryDto>>> GetInjectionHistory()        {
             try
             {
-                var injectionOperations = await _injectionService.GetInjectionHistoryAsync();
+                var userId = GetCurrentUserId();
+                var injectionOperations = await _injectionService.GetInjectionHistoryAsync(userId);
                 var historyDtos = _mapper.Map<IEnumerable<InjectionHistoryDto>>(injectionOperations);
                 return Ok(historyDtos);
             }
